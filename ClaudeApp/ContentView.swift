@@ -1,21 +1,25 @@
-//
-//  ContentView.swift
-//  ClaudeApp
-//
-//  Created by Marta Maria Ries on 2/7/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            Tab("Today", systemImage: "sun.max.fill") {
+                TodayView()
+            }
+
+            Tab("Log", systemImage: "heart.text.square") {
+                LogView()
+            }
+
+            Tab("Insights", systemImage: "chart.xyaxis.line") {
+                InsightsView()
+            }
+
+            Tab("Settings", systemImage: "gearshape") {
+                SettingsView()
+            }
         }
-        .padding()
+        .tint(.appRose)
     }
 }
 
