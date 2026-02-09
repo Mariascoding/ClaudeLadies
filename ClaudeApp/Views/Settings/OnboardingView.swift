@@ -4,6 +4,7 @@ import SwiftData
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var step = 0
+    @State private var selectedGoal: WellnessGoal?
     @State private var cycleLength = 28
     @State private var periodLength = 5
     @State private var lastPeriodDate = Date()
@@ -21,8 +22,10 @@ struct OnboardingView: View {
                 case 0:
                     welcomeStep
                 case 1:
-                    cycleLengthStep
+                    wellnessGoalStep
                 case 2:
+                    cycleLengthStep
+                case 3:
                     lastPeriodStep
                 default:
                     EmptyView()
@@ -42,7 +45,7 @@ struct OnboardingView: View {
 
                     Spacer()
 
-                    if step < 2 {
+                    if step < 3 {
                         GentleButton("Next", color: .appRose) {
                             withAnimation(AppTheme.gentleAnimation) {
                                 step += 1
@@ -81,6 +84,57 @@ struct OnboardingView: View {
                 .affirmationStyle()
                 .multilineTextAlignment(.center)
                 .padding(.top, AppTheme.Spacing.sm)
+        }
+    }
+
+    private var wellnessGoalStep: some View {
+        VStack(spacing: AppTheme.Spacing.lg) {
+            Image(systemName: "heart.circle.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(Color.appRose)
+
+            Text("Your Wellness Goal")
+                .warmTitle()
+
+            Text("What brings you here? This helps us tailor your guidance.")
+                .guidanceText()
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, AppTheme.Spacing.xl)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Spacing.sm) {
+                ForEach(WellnessGoal.allCases) { goal in
+                    goalCard(goal)
+                }
+            }
+            .padding(.horizontal, AppTheme.Spacing.md)
+        }
+    }
+
+    private func goalCard(_ goal: WellnessGoal) -> some View {
+        let isSelected = selectedGoal == goal
+
+        return Button {
+            withAnimation(AppTheme.gentleAnimation) {
+                selectedGoal = goal
+            }
+        } label: {
+            VStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: goal.icon)
+                    .font(.title2)
+                    .foregroundStyle(isSelected ? .white : goal.color)
+
+                Text(goal.displayName)
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, AppTheme.Spacing.md)
+            .padding(.horizontal, AppTheme.Spacing.sm)
+            .background(isSelected ? goal.color : goal.color.opacity(0.08))
+            .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.md))
         }
     }
 
@@ -141,7 +195,8 @@ struct OnboardingView: View {
             cycleLength: cycleLength,
             periodLength: periodLength,
             lastPeriodStartDate: lastPeriodDate,
-            hasCompletedOnboarding: true
+            hasCompletedOnboarding: true,
+            wellnessGoal: selectedGoal
         )
         modelContext.insert(profile)
         try? modelContext.save()

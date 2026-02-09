@@ -63,12 +63,15 @@ struct NervousSystemGuidanceView: View {
                 .padding(.vertical, AppTheme.Spacing.sm)
             }
 
-            if isExpanded {
-                sectionContent(section)
-                    .padding(.top, AppTheme.Spacing.sm)
-                    .padding(.bottom, AppTheme.Spacing.md)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            VStack(spacing: 0) {
+                if isExpanded {
+                    sectionContent(section)
+                        .padding(.top, AppTheme.Spacing.sm)
+                        .padding(.bottom, AppTheme.Spacing.md)
+                        .transition(.opacity)
+                }
             }
+            .clipped()
         }
     }
 

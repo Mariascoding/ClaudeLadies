@@ -74,14 +74,17 @@ struct PhaseInfoCard: View {
                 .padding(.vertical, AppTheme.Spacing.sm)
             }
 
-            if isExpanded {
-                Text(content)
-                    .guidanceText()
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, AppTheme.Spacing.sm)
-                    .padding(.leading, 32)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            VStack(spacing: 0) {
+                if isExpanded {
+                    Text(content)
+                        .guidanceText()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, AppTheme.Spacing.sm)
+                        .padding(.leading, 32)
+                        .transition(.opacity)
+                }
             }
+            .clipped()
 
             Divider()
                 .overlay(description.phase.accentColor.opacity(0.1))

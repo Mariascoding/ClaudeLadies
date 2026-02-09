@@ -11,6 +11,10 @@ struct ContentView: View {
                 LogView()
             }
 
+            Tab("Nourish", systemImage: "leaf.fill") {
+                NourishView()
+            }
+
             Tab("Insights", systemImage: "chart.xyaxis.line") {
                 InsightsView()
             }
