@@ -7,7 +7,7 @@ struct ClaudeAppApp: App {
         WindowGroup {
             RootView()
         }
-        .modelContainer(for: [CycleLog.self, SymptomEntry.self, UserProfile.self])
+        .modelContainer(for: [CycleLog.self, SymptomEntry.self, UserProfile.self, NutritionLog.self])
     }
 }
 

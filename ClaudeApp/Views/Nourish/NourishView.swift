@@ -11,13 +11,13 @@ struct NourishView: View {
                 VStack(spacing: AppTheme.Spacing.md) {
                     protocolSelector
 
-                    if let guidance = viewModel.nutritionGuidance,
+                    if let plan = viewModel.dailyPlan,
                        let position = viewModel.cyclePosition {
-                        NutritionGuidanceCard(
-                            guidance: guidance,
-                            phase: position.phase
+                        DailyTimelineView(
+                            plan: plan,
+                            phase: position.phase,
+                            viewModel: viewModel
                         )
-                        .padding(.horizontal, AppTheme.Spacing.md)
                     } else if viewModel.selectedProtocol == nil {
                         noProtocolPrompt
                     }

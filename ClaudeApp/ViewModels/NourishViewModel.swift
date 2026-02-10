@@ -3,10 +3,11 @@ import SwiftData
 
 @Observable
 final class NourishViewModel {
-    var nutritionGuidance: NutritionGuidance?
+    var dailyPlan: DailyNutritionPlan?
     var selectedProtocol: NutritionProtocol?
     var wellnessGoal: WellnessGoal?
     var cyclePosition: CycleCalculator.CyclePosition?
+    var nutritionLog: NutritionLog?
 
     private var modelContext: ModelContext?
 
@@ -29,7 +30,8 @@ final class NourishViewModel {
         )
         self.cyclePosition = position
 
-        generateGuidance(position: position)
+        generatePlan(position: position)
+        loadOrCreateTodayLog()
     }
 
     func selectProtocol(_ nutritionProtocol: NutritionProtocol?) {
@@ -37,22 +39,66 @@ final class NourishViewModel {
         saveProtocol(nutritionProtocol)
 
         if let position = cyclePosition {
-            generateGuidance(position: position)
+            generatePlan(position: position)
         }
     }
 
-    private func generateGuidance(position: CycleCalculator.CyclePosition) {
+    // MARK: - Check-off Tracking
+
+    func toggleItem(_ item: NutritionItem) {
+        guard let nutritionLog else { return }
+        nutritionLog.toggleItem(item.id)
+        try? modelContext?.save()
+    }
+
+    func isItemCompleted(_ item: NutritionItem) -> Bool {
+        nutritionLog?.hasCompleted(item.id) ?? false
+    }
+
+    func completedCount(for timeBlock: TimeBlock) -> Int {
+        guard let nutritionLog else { return 0 }
+        return timeBlock.allItems.filter { nutritionLog.hasCompleted($0.id) }.count
+    }
+
+    var totalCompletedCount: Int {
+        guard let dailyPlan, let nutritionLog else { return 0 }
+        return dailyPlan.timeBlocks
+            .flatMap(\.allItems)
+            .filter { nutritionLog.hasCompleted($0.id) }
+            .count
+    }
+
+    // MARK: - Private
+
+    private func generatePlan(position: CycleCalculator.CyclePosition) {
         guard let selectedProtocol,
               let goal = wellnessGoal else {
-            nutritionGuidance = nil
+            dailyPlan = nil
             return
         }
 
-        nutritionGuidance = NutritionContent.guidance(
+        dailyPlan = NutritionContent.dailyPlan(
             for: selectedProtocol,
             phase: position.phase,
             goal: goal
         )
+    }
+
+    private func loadOrCreateTodayLog() {
+        guard let modelContext else { return }
+        let today = Calendar.current.startOfDay(for: Date())
+        let descriptor = FetchDescriptor<NutritionLog>(
+            predicate: #Predicate { $0.date == today }
+        )
+
+        if let existing = try? modelContext.fetch(descriptor).first {
+            nutritionLog = existing
+        } else {
+            let newLog = NutritionLog(date: today)
+            modelContext.insert(newLog)
+            try? modelContext.save()
+            nutritionLog = newLog
+        }
     }
 
     private func fetchProfile() -> UserProfile? {
