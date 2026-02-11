@@ -9,10 +9,19 @@ final class NourishViewModel {
     var cyclePosition: CycleCalculator.CyclePosition?
     var nutritionLog: NutritionLog?
 
+    let notificationManager = NourishNotificationManager()
+
     private var modelContext: ModelContext?
 
     func load(modelContext: ModelContext) {
         self.modelContext = modelContext
+
+        notificationManager.onPreferenceChanged = { [weak self] in
+            self?.rescheduleNotificationsIfNeeded()
+        }
+
+        Task { await notificationManager.checkPermissionStatus() }
+
         refresh()
     }
 
@@ -32,6 +41,7 @@ final class NourishViewModel {
 
         generatePlan(position: position)
         loadOrCreateTodayLog()
+        rescheduleNotificationsIfNeeded()
     }
 
     func selectProtocol(_ nutritionProtocol: NutritionProtocol?) {
@@ -49,6 +59,7 @@ final class NourishViewModel {
         guard let nutritionLog else { return }
         nutritionLog.toggleItem(item.id)
         try? modelContext?.save()
+        rescheduleNotificationsIfNeeded()
     }
 
     func isItemCompleted(_ item: NutritionItem) -> Bool {
@@ -66,6 +77,14 @@ final class NourishViewModel {
             .flatMap(\.allItems)
             .filter { nutritionLog.hasCompleted($0.id) }
             .count
+    }
+
+    // MARK: - Notifications
+
+    private func rescheduleNotificationsIfNeeded() {
+        guard let dailyPlan else { return }
+        let completedIDs = Set(nutritionLog?.completedItemsRaw ?? [])
+        notificationManager.rescheduleNotifications(plan: dailyPlan, completedItemIDs: completedIDs)
     }
 
     // MARK: - Private

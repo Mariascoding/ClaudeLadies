@@ -3,13 +3,24 @@ import SwiftData
 
 struct NourishView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = NourishViewModel()
+    @State private var showRitualSuggestion = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: AppTheme.Spacing.md) {
                     protocolSelector
+
+                    if let position = viewModel.cyclePosition,
+                       viewModel.selectedProtocol != nil {
+                        NourishNotificationCard(
+                            notificationManager: viewModel.notificationManager,
+                            accentColor: position.phase.accentColor
+                        )
+                        .padding(.horizontal, AppTheme.Spacing.md)
+                    }
 
                     if let plan = viewModel.dailyPlan,
                        let position = viewModel.cyclePosition {
@@ -32,6 +43,21 @@ struct NourishView: View {
         }
         .onAppear {
             viewModel.load(modelContext: modelContext)
+            suggestRitualsIfNeeded()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                viewModel.refresh()
+                Task { await viewModel.notificationManager.checkPermissionStatus() }
+            }
+        }
+        .alert("Enable ritual reminders?", isPresented: $showRitualSuggestion) {
+            Button("Enable") {
+                viewModel.notificationManager.ritualNotificationsEnabled = true
+            }
+            Button("Not now", role: .cancel) { }
+        } message: {
+            Text("Rituals like warm lemon water and evening journaling are easy to forget. A gentle nudge can help make them part of your rhythm.")
         }
     }
 
@@ -90,6 +116,18 @@ struct NourishView: View {
             .background(isSelected ? nutritionProtocol.color : nutritionProtocol.color.opacity(0.08))
             .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.md))
         }
+    }
+
+    // MARK: - Ritual Suggestion
+
+    private func suggestRitualsIfNeeded() {
+        let manager = viewModel.notificationManager
+        guard viewModel.selectedProtocol != nil,
+              manager.permissionStatus == .authorized,
+              !manager.hasPromptedRituals,
+              !manager.ritualNotificationsEnabled else { return }
+        manager.hasPromptedRituals = true
+        showRitualSuggestion = true
     }
 
     // MARK: - Empty State
