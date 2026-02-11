@@ -2,12 +2,11 @@ import SwiftUI
 
 struct MoonView: View {
     var dayOffset: Int = 0
-    
-    @StateObject private var moonState = MoonState()
+    @ObservedObject var moonState: MoonState
 
     private let moonSize: CGFloat = 200
     private let color: Color = .red
-    
+
     var displayMoonDay: Int {
         moonState.moonDay + dayOffset
     }
@@ -37,8 +36,8 @@ struct MoonView: View {
                 blurRadius: 4,
                 opacity: 0.5
             )
-            
-            
+
+
             // 🌘 Primary Light Layer
             MoonGlow(
                 currentMoonDay: displayMoonDay,
@@ -48,7 +47,7 @@ struct MoonView: View {
                 opacity: 0.4,
                 color: color
             )
-            
+
             // 🌘 Added Brighness Layer
             MoonGlow(
                 currentMoonDay: displayMoonDay,
@@ -61,10 +60,7 @@ struct MoonView: View {
 
 
         }
-        .opacity(moonState.isLoaded ? 1 : 0) 
-        .task {
-            await moonState.load()
-        }
+        .opacity(moonState.isLoaded ? 1 : 0)
     }
 
     /// Calculate today's moon phase (0–29) based on a reference new moon
@@ -79,6 +75,9 @@ struct MoonView: View {
 #Preview {
     ZStack {
         Color(red: 0.15, green: 0.2, blue: 0.3)
-        MoonView()
+        MoonView(moonState: {
+            let state = MoonState()
+            return state
+        }())
     }
 }

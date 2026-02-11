@@ -4,6 +4,7 @@ import SwiftData
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = TodayViewModel()
+    @StateObject private var moonState = MoonState()
 
     var body: some View {
         ScrollView {
@@ -14,6 +15,20 @@ struct TodayView: View {
                         phase: guidance.phase,
                         dayInCycle: guidance.dayInCycle
                     )
+
+                    // Moon phase
+                    MoonView(moonState: moonState)
+                        .frame(height: 220)
+
+                    // Cycle–Moon alignment
+                    if moonState.isLoaded, let position = viewModel.cyclePosition {
+                        CycleMoonAlignmentView(
+                            moonPhase: moonState.moonPhase,
+                            dayInCycle: position.dayInCycle,
+                            cycleLength: viewModel.cycleLength,
+                            phase: position.phase
+                        )
+                    }
 
                     // Affirmation
                     Text("\"\(guidance.affirmation)\"")
@@ -59,6 +74,9 @@ struct TodayView: View {
         .background(backgroundGradient)
         .onAppear {
             viewModel.load(modelContext: modelContext)
+        }
+        .task {
+            await moonState.load()
         }
     }
 

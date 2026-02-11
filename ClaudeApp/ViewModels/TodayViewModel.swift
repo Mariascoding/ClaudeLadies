@@ -6,6 +6,7 @@ final class TodayViewModel {
     var guidance: DailyGuidance?
     var selectedNervousSystemState: NervousSystemState?
     var cyclePosition: CycleCalculator.CyclePosition?
+    var cycleLength: Int = 28
 
     private var modelContext: ModelContext?
 
@@ -24,6 +25,7 @@ final class TodayViewModel {
             periodLength: profile.periodLength
         )
         self.cyclePosition = position
+        self.cycleLength = profile.cycleLength
 
         // Load today's nervous system state from symptom entry
         if let todayEntry = fetchTodayEntry() {
