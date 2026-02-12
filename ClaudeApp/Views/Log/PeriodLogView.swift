@@ -2,8 +2,11 @@ import SwiftUI
 
 struct PeriodLogView: View {
     let isPeriodActive: Bool
-    let onStart: () -> Void
+    let onStart: (Date) -> Void
     let onEnd: () -> Void
+
+    @State private var showDatePicker = false
+    @State private var selectedDate = Date()
 
     var body: some View {
         VStack(spacing: AppTheme.Spacing.md) {
@@ -16,7 +19,7 @@ struct PeriodLogView: View {
                     Text(isPeriodActive ? "Period Active" : "Period")
                         .warmHeadline()
 
-                    Text(isPeriodActive ? "Tap to mark the end of your period" : "Tap to mark the start of your period")
+                    Text(isPeriodActive ? "Tap to mark the end of your period" : "When did your period start?")
                         .captionStyle()
                 }
 
@@ -25,8 +28,40 @@ struct PeriodLogView: View {
 
             if isPeriodActive {
                 GentleButton("My period ended", color: .appRose.opacity(0.7), action: onEnd)
+            } else if showDatePicker {
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    DatePicker(
+                        "Start date",
+                        selection: $selectedDate,
+                        in: ...Date(),
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .tint(.appRose)
+
+                    HStack(spacing: AppTheme.Spacing.sm) {
+                        GentleOutlineButton("Cancel", color: .appSoftBrown) {
+                            withAnimation(AppTheme.gentleAnimation) {
+                                showDatePicker = false
+                            }
+                        }
+
+                        GentleButton("Confirm", color: .appRose) {
+                            onStart(selectedDate)
+                            withAnimation(AppTheme.gentleAnimation) {
+                                showDatePicker = false
+                            }
+                        }
+                    }
+                }
             } else {
-                GentleButton("My period started", color: .appRose, action: onStart)
+                GentleButton("My period started", color: .appRose) {
+                    selectedDate = Date()
+                    withAnimation(AppTheme.gentleAnimation) {
+                        showDatePicker = true
+                    }
+                }
             }
         }
         .warmCard()

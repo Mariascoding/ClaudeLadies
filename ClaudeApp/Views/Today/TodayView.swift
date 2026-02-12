@@ -10,6 +10,14 @@ struct TodayView: View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.md) {
                 if let guidance = viewModel.guidance {
+                    // Today's date display
+                    todayDateCard
+
+                    // Period late banner
+                    if viewModel.delayDays > 0 {
+                        periodLateBanner
+                    }
+
                     PhaseHeaderView(
                         greeting: guidance.greeting,
                         phase: guidance.phase,
@@ -75,9 +83,44 @@ struct TodayView: View {
         .onAppear {
             viewModel.load(modelContext: modelContext)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .cycleDataDidChange)) { _ in
+            viewModel.refresh()
+        }
         .task {
             await moonState.load()
         }
+    }
+
+    private var todayDateCard: some View {
+        VStack(spacing: AppTheme.Spacing.xs) {
+            Text(Date(), format: .dateTime.weekday(.wide))
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+            Text(Date(), format: .dateTime.month(.wide).day())
+                .font(.system(.title2, design: .rounded, weight: .semibold))
+                .foregroundStyle(Color.appSoftBrown)
+            if let position = viewModel.cyclePosition {
+                Text("\(position.phase.displayName) Phase · Day \(position.dayInCycle) of \(viewModel.cycleLength)")
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(position.phase.accentColor)
+            }
+        }
+        .padding(.top, AppTheme.Spacing.md)
+    }
+
+    private var periodLateBanner: some View {
+        HStack(spacing: AppTheme.Spacing.sm) {
+            Image(systemName: "exclamationmark.circle.fill")
+            Text("Period is \(viewModel.delayDays) day\(viewModel.delayDays == 1 ? "" : "s") late")
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
+        }
+        .foregroundStyle(Color.appRose)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, AppTheme.Spacing.sm)
+        .padding(.horizontal, AppTheme.Spacing.md)
+        .background(Color.appRose.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.sm))
+        .padding(.horizontal, AppTheme.Spacing.md)
     }
 
     private var noDataView: some View {

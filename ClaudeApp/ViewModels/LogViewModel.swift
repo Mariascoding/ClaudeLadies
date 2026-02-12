@@ -28,18 +28,20 @@ final class LogViewModel {
         saveTodaySymptoms()
     }
 
-    func startPeriod() {
+    func startPeriod(on date: Date = Date()) {
         guard let modelContext else { return }
-        let log = CycleLog(startDate: Date())
+        let startDate = Calendar.current.startOfDay(for: date)
+        let log = CycleLog(startDate: startDate)
         modelContext.insert(log)
 
         // Update user profile's last period start date
         if let profile = fetchProfile() {
-            profile.lastPeriodStartDate = Date()
+            profile.lastPeriodStartDate = startDate
         }
 
         isPeriodActive = true
         try? modelContext.save()
+        NotificationCenter.default.post(name: .cycleDataDidChange, object: nil)
     }
 
     func endPeriod() {
@@ -49,6 +51,7 @@ final class LogViewModel {
         }
         isPeriodActive = false
         try? modelContext.save()
+        NotificationCenter.default.post(name: .cycleDataDidChange, object: nil)
     }
 
     private func loadTodayEntry() {

@@ -12,7 +12,7 @@ struct LogView: View {
                     // Period tracking
                     PeriodLogView(
                         isPeriodActive: viewModel.isPeriodActive,
-                        onStart: { viewModel.startPeriod() },
+                        onStart: { date in viewModel.startPeriod(on: date) },
                         onEnd: { viewModel.endPeriod() }
                     )
                     .padding(.horizontal, AppTheme.Spacing.md)
@@ -51,6 +51,9 @@ struct LogView: View {
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 viewModel.load(modelContext: modelContext)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .cycleDataDidChange)) { _ in
+                viewModel.refresh()
             }
         }
     }
