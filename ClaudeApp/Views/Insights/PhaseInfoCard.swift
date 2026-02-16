@@ -42,6 +42,11 @@ struct PhaseInfoCard: View {
                     icon: "figure.walk",
                     content: description.movement
                 )
+                infoSection(
+                    title: "Detox",
+                    icon: "leaf.fill",
+                    content: description.detox
+                )
             }
         }
         .warmCard()
@@ -72,19 +77,19 @@ struct PhaseInfoCard: View {
                         .foregroundStyle(Color.appSoftBrown.opacity(0.4))
                 }
                 .padding(.vertical, AppTheme.Spacing.sm)
+                .background(Color.appWarmWhite)
             }
+            .buttonStyle(.plain)
+            .zIndex(1)
 
-            VStack(spacing: 0) {
-                if isExpanded {
-                    Text(content)
-                        .guidanceText()
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.bottom, AppTheme.Spacing.sm)
-                        .padding(.leading, 32)
-                        .transition(.opacity)
-                }
+            if isExpanded {
+                Text(content)
+                    .guidanceText()
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, AppTheme.Spacing.sm)
+                    .padding(.leading, 32)
+                    .transition(.opacity.combined(with: .identity))
             }
-            .clipped()
 
             Divider()
                 .overlay(description.phase.accentColor.opacity(0.1))

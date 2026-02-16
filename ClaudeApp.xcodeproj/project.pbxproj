@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A1B2C3D40004AA000B3D90 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4000DAA000B3D90 /* Supabase */; };
+		A1B2C3D40005AA000B3D90 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4000EAA000B3D90 /* Auth */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		4C90E59C2F381D1D000B3D90 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +32,9 @@
 		4C90E58D2F381D1B000B3D90 /* ClaudeApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4C90E59B2F381D1D000B3D90 /* ClaudeAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClaudeAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4C90E5A52F381D1D000B3D90 /* ClaudeAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClaudeAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D40006AA000B3D90 /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
+		A1B2C3D40007AA000B3D90 /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationService.swift; sourceTree = "<group>"; };
+		A1B2C3D40008AA000B3D90 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +60,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D40004AA000B3D90 /* Supabase in Frameworks */,
+				A1B2C3D40005AA000B3D90 /* Auth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,6 +89,8 @@
 				4C90E59E2F381D1D000B3D90 /* ClaudeAppTests */,
 				4C90E5A82F381D1D000B3D90 /* ClaudeAppUITests */,
 				4C90E58E2F381D1B000B3D90 /* Products */,
+				A1B2C3D40009AA000B3D90 /* Services */,
+				A1B2C3D4000BAA000B3D90 /* Views */,
 			);
 			sourceTree = "<group>";
 		};
@@ -90,6 +102,34 @@
 				4C90E5A52F381D1D000B3D90 /* ClaudeAppUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A1B2C3D40009AA000B3D90 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D40006AA000B3D90 /* SupabaseManager.swift */,
+				A1B2C3D40007AA000B3D90 /* AuthenticationService.swift */,
+			);
+			name = Services;
+			path = ClaudeApp/Services;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4000BAA000B3D90 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4000AAA000B3D90 /* Auth */,
+			);
+			name = Views;
+			path = ClaudeApp/Views;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4000AAA000B3D90 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D40008AA000B3D90 /* AuthenticationView.swift */,
+			);
+			name = Auth;
+			path = Auth;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +152,8 @@
 			);
 			name = ClaudeApp;
 			packageProductDependencies = (
+				A1B2C3D4000DAA000B3D90 /* Supabase */,
+				A1B2C3D4000EAA000B3D90 /* Auth */,
 			);
 			productName = ClaudeApp;
 			productReference = 4C90E58D2F381D1B000B3D90 /* ClaudeApp.app */;
@@ -196,6 +238,9 @@
 			mainGroup = 4C90E5842F381D1B000B3D90;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			packageReferences = (
+				A1B2C3D4000CAA000B3D90 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			productRefGroup = 4C90E58E2F381D1B000B3D90 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -583,6 +628,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1B2C3D4000CAA000B3D90 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1B2C3D4000DAA000B3D90 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D4000CAA000B3D90 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		A1B2C3D4000EAA000B3D90 /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D4000CAA000B3D90 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 4C90E5852F381D1B000B3D90 /* Project object */;
 }

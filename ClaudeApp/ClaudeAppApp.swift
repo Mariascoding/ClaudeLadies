@@ -3,9 +3,13 @@ import SwiftData
 
 @main
 struct ClaudeAppApp: App {
+    @State private var authService = AuthenticationService()
+
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environment(authService)
+                .task { await authService.initialize() }
         }
         .modelContainer(for: [CycleLog.self, SymptomEntry.self, UserProfile.self, NutritionLog.self])
     }

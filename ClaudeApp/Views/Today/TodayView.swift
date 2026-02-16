@@ -10,9 +10,6 @@ struct TodayView: View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.md) {
                 if let guidance = viewModel.guidance {
-                    // Today's date display
-                    todayDateCard
-
                     // Period late banner
                     if viewModel.delayDays > 0 {
                         periodLateBanner
@@ -21,7 +18,8 @@ struct TodayView: View {
                     PhaseHeaderView(
                         greeting: guidance.greeting,
                         phase: guidance.phase,
-                        dayInCycle: guidance.dayInCycle
+                        dayInCycle: guidance.dayInCycle,
+                        cycleLength: viewModel.cycleLength
                     )
 
                     // Moon phase
@@ -89,23 +87,6 @@ struct TodayView: View {
         .task {
             await moonState.load()
         }
-    }
-
-    private var todayDateCard: some View {
-        VStack(spacing: AppTheme.Spacing.xs) {
-            Text(Date(), format: .dateTime.weekday(.wide))
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(Color.appSoftBrown.opacity(0.6))
-            Text(Date(), format: .dateTime.month(.wide).day())
-                .font(.system(.title2, design: .rounded, weight: .semibold))
-                .foregroundStyle(Color.appSoftBrown)
-            if let position = viewModel.cyclePosition {
-                Text("\(position.phase.displayName) Phase · Day \(position.dayInCycle) of \(viewModel.cycleLength)")
-                    .font(.system(.caption, design: .rounded, weight: .medium))
-                    .foregroundStyle(position.phase.accentColor)
-            }
-        }
-        .padding(.top, AppTheme.Spacing.md)
     }
 
     private var periodLateBanner: some View {

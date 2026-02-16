@@ -3,9 +3,16 @@ import SwiftData
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(AuthenticationService.self) private var authService
     @Query private var profiles: [UserProfile]
+    @State private var showSignIn = false
 
     private var profile: UserProfile? { profiles.first }
+
+    private var isSignedIn: Bool {
+        if case .authenticated = authService.state { return true }
+        return false
+    }
 
     var body: some View {
         NavigationStack {
@@ -18,6 +25,9 @@ struct SettingsView: View {
                         nutritionProtocolCard(profile)
                     }
 
+                    // Cloud backup
+                    backupCard
+
                     // About
                     aboutCard
 
@@ -28,6 +38,10 @@ struct SettingsView: View {
             .background(Color.appCream.ignoresSafeArea())
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showSignIn) {
+                AuthenticationView(onDismiss: { showSignIn = false })
+                    .environment(authService)
+            }
         }
     }
 
@@ -130,6 +144,49 @@ struct SettingsView: View {
 
             Text("Tap a selected protocol again to deselect.")
                 .captionStyle()
+        }
+        .warmCard()
+        .padding(.horizontal, AppTheme.Spacing.md)
+    }
+
+    private var backupCard: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: isSignedIn ? "checkmark.icloud.fill" : "icloud.fill")
+                    .foregroundStyle(isSignedIn ? Color.appSage : Color.appSoftBrown.opacity(0.4))
+                Text("Cloud Backup")
+                    .warmHeadline()
+            }
+
+            if isSignedIn {
+                if let email = authService.currentUserEmail {
+                    Text("Signed in as \(email)")
+                        .captionStyle()
+                }
+
+                Button {
+                    Task { await authService.signOut() }
+                } label: {
+                    Text("Sign Out")
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+                }
+            } else {
+                Text("Sign in to back up your data and keep your history safe across devices.")
+                    .captionStyle()
+
+                Button {
+                    showSignIn = true
+                } label: {
+                    HStack(spacing: AppTheme.Spacing.xs) {
+                        Image(systemName: "person.crop.circle")
+                            .font(.caption)
+                        Text("Sign In")
+                            .font(.system(.caption, design: .rounded, weight: .medium))
+                    }
+                    .foregroundStyle(Color.appRose)
+                }
+            }
         }
         .warmCard()
         .padding(.horizontal, AppTheme.Spacing.md)

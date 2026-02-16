@@ -64,6 +64,12 @@ struct InsightsView: View {
                     SymptomPatternView(frequencies: viewModel.symptomFrequencies)
                         .padding(.horizontal, AppTheme.Spacing.md)
 
+                    // Pattern analysis & protocol recommendation
+                    if let analysis = viewModel.patternAnalysis {
+                        PatternInsightsView(analysis: analysis)
+                            .padding(.horizontal, AppTheme.Spacing.md)
+                    }
+
                     Spacer(minLength: AppTheme.Spacing.xxl)
                 }
                 .padding(.top, AppTheme.Spacing.md)

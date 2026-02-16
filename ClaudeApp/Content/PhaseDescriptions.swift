@@ -9,6 +9,7 @@ struct PhaseDescription {
     let superpower: String
     let nourishment: String
     let movement: String
+    let detox: String
 }
 
 enum PhaseDescriptions {
@@ -29,7 +30,8 @@ enum PhaseDescriptions {
         hormoneHighlight: "Estrogen and progesterone are at their lowest. Your body is focused on release and renewal. The right and left hemispheres of your brain are most connected now — making this a time of deep intuitive insight.",
         superpower: "Intuition and vision. Your analytical mind quiets, and deeper knowing emerges. Many women report their most powerful insights during menstruation. Journal, dream, and listen inward.",
         nourishment: "Warm, iron-rich foods: soups, stews, dark leafy greens, beets, and gentle spices. Stay hydrated. Dark chocolate is not a craving — it's your body asking for magnesium.",
-        movement: "Gentle stretching, restorative yoga, slow walks in nature. If it feels like effort, it's too much. Rest is the most productive thing you can do right now."
+        movement: "Gentle stretching, restorative yoga, slow walks in nature. If it feels like effort, it's too much. Rest is the most productive thing you can do right now.",
+        detox: "Not recommended. Your body is already in a natural detox — shedding the uterine lining is its own cleansing process. Adding detox protocols now can deplete energy and worsen cramps. Focus on warmth, gentle hydration, and letting your body do what it already knows."
     )
 
     static let follicular = PhaseDescription(
@@ -40,7 +42,8 @@ enum PhaseDescriptions {
         hormoneHighlight: "Estrogen is rising steadily, boosting serotonin and dopamine. Your brain is primed for learning new things and forming new neural pathways. FSH is stimulating follicle development.",
         superpower: "Creativity and initiation. Your brain loves novelty right now. Start new projects, learn new skills, brainstorm freely. You absorb information faster and think more flexibly.",
         nourishment: "Light, fresh foods: salads, fermented foods, lean proteins, and sprouted grains. Your metabolism is naturally efficient — eat to fuel your rising energy.",
-        movement: "Try new workouts, dance, cardio, hiking. Your body recovers faster and builds strength more efficiently. This is the best time to challenge yourself physically."
+        movement: "Try new workouts, dance, cardio, hiking. Your body recovers faster and builds strength more efficiently. This is the best time to challenge yourself physically.",
+        detox: "Good time for gentle detox. Rising estrogen activates liver detox pathways. Try: cruciferous vegetables (broccoli, cauliflower, kale), lemon water, dry brushing, and light sauna sessions. Your body is building energy — a gentle cleanse supports estrogen metabolism without draining you."
     )
 
     static let ovulation = PhaseDescription(
@@ -51,7 +54,8 @@ enum PhaseDescriptions {
         hormoneHighlight: "Estrogen peaks, triggering the LH surge that releases the egg. Testosterone briefly spikes, boosting confidence and desire. You may notice enhanced verbal fluency, facial symmetry, and social magnetism.",
         superpower: "Communication and connection. Your verbal skills are at their strongest. Have important conversations, present ideas, negotiate, connect deeply with others. Your presence is naturally amplified.",
         nourishment: "Raw vegetables, fruits, lighter grains, and anti-inflammatory foods. Your body runs warm — cool, hydrating foods feel best. Support liver detoxification with cruciferous vegetables.",
-        movement: "High-intensity workouts, group fitness, competitive sports. Your pain tolerance is higher and endurance peaks. This is when personal records happen."
+        movement: "High-intensity workouts, group fitness, competitive sports. Your pain tolerance is higher and endurance peaks. This is when personal records happen.",
+        detox: "Best time to detox. Your liver is at peak efficiency and your body can handle more intense cleansing. Try: sauna, sweaty exercise, juice cleanse, lymphatic massage, infrared therapy, and sulfur-rich foods (garlic, onions, eggs). Glutathione production is highest — your master detoxifier is fully online."
     )
 
     static let luteal = PhaseDescription(
@@ -62,6 +66,7 @@ enum PhaseDescriptions {
         hormoneHighlight: "Progesterone dominates, promoting calm but also potentially causing PMS symptoms. Serotonin levels may dip, increasing cravings and emotional sensitivity. Your metabolism speeds up — you genuinely need more calories.",
         superpower: "Discernment and completion. Your critical thinking sharpens. You notice what isn't working and can refine, edit, and improve. Channel this into completing projects rather than self-criticism.",
         nourishment: "Complex carbohydrates, root vegetables, magnesium-rich foods (dark chocolate, nuts, seeds). Your caloric needs increase by 100-300 calories. Honor your hunger — it's hormonal, not weakness.",
-        movement: "Moderate exercise shifting to gentle: yoga, pilates, walking, swimming. Listen to your body day by day. Forcing intense workouts can increase cortisol and worsen PMS symptoms."
+        movement: "Moderate exercise shifting to gentle: yoga, pilates, walking, swimming. Listen to your body day by day. Forcing intense workouts can increase cortisol and worsen PMS symptoms.",
+        detox: "Proceed with caution. Early luteal (first half) can handle mild detox — herbal teas, fiber-rich foods, gentle walks. Late luteal (PMS window): avoid detox entirely. Progesterone slows digestion and your body is preparing for menstruation. Aggressive detox now can spike cortisol, worsen PMS, and disrupt sleep."
     )
 }

@@ -14,6 +14,7 @@ final class InsightsViewModel {
     var phaseDescription: PhaseDescription?
     var phaseBoundaries: [(phase: CyclePhase, startDay: Int, endDay: Int)] = []
     var symptomFrequencies: [(symptom: Symptom, count: Int)] = []
+    var patternAnalysis: PatternAnalysis?
     var cycleLogs: [CycleLog] = []
     var expectedNextPeriodStart: Date? = nil
     var delayDays: Int = 0
@@ -53,6 +54,7 @@ final class InsightsViewModel {
         loadCycleLogs()
         calculateExpectedNextPeriod()
         loadSymptomPatterns()
+        loadPatternAnalysis()
     }
 
     private func loadSymptomPatterns() {
@@ -77,6 +79,32 @@ final class InsightsViewModel {
             .sorted { $0.value > $1.value }
             .prefix(8)
             .map { (symptom: $0.key, count: $0.value) }
+    }
+
+    private func loadPatternAnalysis() {
+        guard let modelContext else { return }
+
+        let descriptor = FetchDescriptor<SymptomEntry>()
+        guard let allEntries = try? modelContext.fetch(descriptor) else { return }
+
+        let entries = allEntries.filter { !$0.symptomsRaw.isEmpty }
+        guard !entries.isEmpty else {
+            patternAnalysis = nil
+            return
+        }
+
+        guard let profile = fetchProfile(),
+              let lastPeriodStart = profile.lastPeriodStartDate else {
+            patternAnalysis = nil
+            return
+        }
+
+        patternAnalysis = PatternAnalysisEngine.analyze(
+            entries: entries,
+            cycleLength: profile.cycleLength,
+            periodLength: profile.periodLength,
+            lastPeriodStartDate: lastPeriodStart
+        )
     }
 
     func addPeriod(on date: Date) {
