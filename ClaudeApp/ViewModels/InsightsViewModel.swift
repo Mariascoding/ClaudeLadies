@@ -5,6 +5,21 @@ extension Notification.Name {
     static let cycleDataDidChange = Notification.Name("cycleDataDidChange")
 }
 
+enum TagCorrelation {
+    case cyclical
+    case leaning
+    case random
+}
+
+struct TagPhaseResult: Identifiable {
+    let id = UUID()
+    let tag: String
+    let totalCount: Int
+    let peakPhase: CyclePhase?
+    let phaseCounts: [CyclePhase: Int]
+    let correlation: TagCorrelation
+}
+
 @Observable
 final class InsightsViewModel {
     var currentPhase: CyclePhase = .menstrual
@@ -20,6 +35,8 @@ final class InsightsViewModel {
     var delayDays: Int = 0
     var lastPeriodStartDate: Date? = nil
     var manualOvulationDates: Set<Date> = []
+    var tagPhaseAnalysis: [TagPhaseResult] = []
+    var monthTagCache: [Date: [String]] = [:]
 
     private var modelContext: ModelContext?
 
@@ -55,6 +72,8 @@ final class InsightsViewModel {
         calculateExpectedNextPeriod()
         loadSymptomPatterns()
         loadPatternAnalysis()
+        loadTagPatterns()
+        loadTagsForMonth(Date())
     }
 
     private func loadSymptomPatterns() {
@@ -255,6 +274,99 @@ final class InsightsViewModel {
         } else {
             delayDays = 0
         }
+    }
+
+    private func loadTagPatterns() {
+        guard let modelContext else { return }
+        guard let profile = fetchProfile(),
+              let lastPeriodStart = profile.lastPeriodStartDate else {
+            tagPhaseAnalysis = []
+            return
+        }
+
+        let descriptor = FetchDescriptor<SymptomEntry>()
+        guard let allEntries = try? modelContext.fetch(descriptor) else {
+            tagPhaseAnalysis = []
+            return
+        }
+
+        let entriesWithTags = allEntries.filter { !$0.customTags.isEmpty }
+        guard !entriesWithTags.isEmpty else {
+            tagPhaseAnalysis = []
+            return
+        }
+
+        // Collect all unique tags and their occurrences per phase
+        var tagOccurrences: [String: [CyclePhase: Int]] = [:]
+        var tagTotals: [String: Int] = [:]
+
+        for entry in entriesWithTags {
+            let position = CycleCalculator.currentPosition(
+                lastPeriodStart: lastPeriodStart,
+                cycleLength: profile.cycleLength,
+                periodLength: profile.periodLength,
+                on: entry.date
+            )
+
+            for tag in entry.customTags {
+                tagTotals[tag, default: 0] += 1
+                tagOccurrences[tag, default: [:]][position.phase, default: 0] += 1
+            }
+        }
+
+        // Analyze each tag with 3+ occurrences
+        var results: [TagPhaseResult] = []
+        for (tag, phaseCounts) in tagOccurrences {
+            let total = tagTotals[tag] ?? 0
+            guard total >= 3 else { continue }
+
+            let sorted = phaseCounts.sorted { $0.value > $1.value }
+            let peakPhase = sorted.first?.key
+            let topTwoCount = sorted.prefix(2).reduce(0) { $0 + $1.value }
+            let concentration = Double(topTwoCount) / Double(total)
+
+            let correlation: TagCorrelation
+            if concentration >= 0.70 {
+                correlation = .cyclical
+            } else if concentration >= 0.50 {
+                correlation = .leaning
+            } else {
+                correlation = .random
+            }
+
+            results.append(TagPhaseResult(
+                tag: tag,
+                totalCount: total,
+                peakPhase: peakPhase,
+                phaseCounts: phaseCounts,
+                correlation: correlation
+            ))
+        }
+
+        tagPhaseAnalysis = results.sorted { $0.totalCount > $1.totalCount }
+    }
+
+    func loadTagsForMonth(_ date: Date) {
+        guard let modelContext else { return }
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month], from: date)
+        guard let firstOfMonth = calendar.date(from: components),
+              let nextMonth = calendar.date(byAdding: .month, value: 1, to: firstOfMonth) else { return }
+
+        let descriptor = FetchDescriptor<SymptomEntry>(
+            predicate: #Predicate { $0.date >= firstOfMonth && $0.date < nextMonth }
+        )
+
+        guard let entries = try? modelContext.fetch(descriptor) else { return }
+
+        var cache: [Date: [String]] = [:]
+        for entry in entries {
+            if !entry.customTags.isEmpty {
+                let day = calendar.startOfDay(for: entry.date)
+                cache[day] = entry.customTags
+            }
+        }
+        monthTagCache = cache
     }
 
     private func fetchProfile() -> UserProfile? {

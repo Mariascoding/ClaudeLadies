@@ -7,6 +7,7 @@ final class SymptomEntry {
     var symptomsRaw: [String]
     var nervousSystemStateRaw: String?
     var cycleLog: CycleLog?
+    var customTags: [String] = []
 
     init(date: Date, symptoms: [Symptom] = [], nervousSystemState: NervousSystemState? = nil) {
         self.date = Calendar.current.startOfDay(for: date)
@@ -34,5 +35,20 @@ final class SymptomEntry {
         } else {
             symptomsRaw.append(symptom.rawValue)
         }
+    }
+
+    func hasTag(_ tag: String) -> Bool {
+        customTags.contains(tag.trimmingCharacters(in: .whitespaces).lowercased())
+    }
+
+    func addTag(_ tag: String) {
+        let normalized = tag.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !normalized.isEmpty, !customTags.contains(normalized) else { return }
+        customTags.append(normalized)
+    }
+
+    func removeTag(_ tag: String) {
+        let normalized = tag.trimmingCharacters(in: .whitespaces).lowercased()
+        customTags.removeAll { $0 == normalized }
     }
 }

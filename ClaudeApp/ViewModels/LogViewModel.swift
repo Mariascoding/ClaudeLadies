@@ -4,6 +4,8 @@ import SwiftData
 @Observable
 final class LogViewModel {
     var todaySymptoms: Set<Symptom> = []
+    var todayTags: [String] = []
+    var allKnownTags: [String] = []
     var isPeriodActive: Bool = false
     var todayEntry: SymptomEntry?
 
@@ -17,6 +19,7 @@ final class LogViewModel {
     func refresh() {
         loadTodayEntry()
         checkPeriodStatus()
+        loadAllKnownTags()
     }
 
     func toggleSymptom(_ symptom: Symptom) {
@@ -58,14 +61,59 @@ final class LogViewModel {
         if let entry = fetchTodayEntry() {
             todayEntry = entry
             todaySymptoms = Set(entry.symptoms)
+            todayTags = entry.customTags
         } else {
             todayEntry = nil
             todaySymptoms = []
+            todayTags = []
         }
     }
 
     private func checkPeriodStatus() {
         isPeriodActive = fetchActiveCycleLog() != nil
+    }
+
+    func addTag(_ tag: String) {
+        let normalized = tag.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !normalized.isEmpty, !todayTags.contains(normalized) else { return }
+        todayTags.append(normalized)
+        saveTodayTags()
+        if !allKnownTags.contains(normalized) {
+            allKnownTags.append(normalized)
+            allKnownTags.sort()
+        }
+    }
+
+    func removeTag(_ tag: String) {
+        let normalized = tag.trimmingCharacters(in: .whitespaces).lowercased()
+        todayTags.removeAll { $0 == normalized }
+        saveTodayTags()
+    }
+
+    private func saveTodayTags() {
+        guard let modelContext else { return }
+        if let entry = todayEntry {
+            entry.customTags = todayTags
+        } else {
+            let entry = SymptomEntry(date: Date())
+            entry.customTags = todayTags
+            modelContext.insert(entry)
+            todayEntry = entry
+        }
+        try? modelContext.save()
+    }
+
+    private func loadAllKnownTags() {
+        guard let modelContext else { return }
+        let descriptor = FetchDescriptor<SymptomEntry>()
+        guard let entries = try? modelContext.fetch(descriptor) else { return }
+        var tagSet = Set<String>()
+        for entry in entries {
+            for tag in entry.customTags {
+                tagSet.insert(tag)
+            }
+        }
+        allKnownTags = tagSet.sorted()
     }
 
     private func saveTodaySymptoms() {

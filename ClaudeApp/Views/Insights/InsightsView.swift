@@ -50,6 +50,10 @@ struct InsightsView: View {
                         },
                         isManualOvulation: { date in
                             viewModel.isManualOvulation(date)
+                        },
+                        tagsForDate: { date in
+                            let day = Calendar.current.startOfDay(for: date)
+                            return viewModel.monthTagCache[day] ?? []
                         }
                     )
                     .padding(.horizontal, AppTheme.Spacing.md)
@@ -62,6 +66,10 @@ struct InsightsView: View {
 
                     // Symptom patterns
                     SymptomPatternView(frequencies: viewModel.symptomFrequencies)
+                        .padding(.horizontal, AppTheme.Spacing.md)
+
+                    // Tag patterns
+                    TagAnalysisView(results: viewModel.tagPhaseAnalysis)
                         .padding(.horizontal, AppTheme.Spacing.md)
 
                     // Pattern analysis & protocol recommendation

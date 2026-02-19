@@ -2,9 +2,10 @@ import SwiftUI
 
 struct DayLogSummary: View {
     let symptoms: Set<Symptom>
+    var tags: [String] = []
 
     var body: some View {
-        if symptoms.isEmpty {
+        if symptoms.isEmpty && tags.isEmpty {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
@@ -23,6 +24,16 @@ struct DayLogSummary: View {
                             .padding(.horizontal, AppTheme.Spacing.sm)
                             .padding(.vertical, AppTheme.Spacing.xs)
                             .background(Color.appSage.opacity(0.1))
+                            .clipShape(Capsule())
+                    }
+
+                    ForEach(tags, id: \.self) { tag in
+                        Text(tag.capitalized)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.appTerracotta)
+                            .padding(.horizontal, AppTheme.Spacing.sm)
+                            .padding(.vertical, AppTheme.Spacing.xs)
+                            .background(Color.appTerracotta.opacity(0.1))
                             .clipShape(Capsule())
                     }
                 }

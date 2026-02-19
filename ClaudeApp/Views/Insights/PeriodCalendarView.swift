@@ -17,6 +17,7 @@ struct PeriodCalendarView: View {
     let canExtendPeriod: (Date) -> Bool
     let canRemovePeriod: (Date) -> Bool
     let isManualOvulation: (Date) -> Bool
+    var tagsForDate: ((Date) -> [String])? = nil
 
     @State private var displayedMonth: Date = Date()
     @State private var selectedDate: Date? = nil
@@ -297,9 +298,19 @@ struct PeriodCalendarView: View {
                     .strokeBorder(Color.appSoftBrown, lineWidth: 2)
             }
 
-            Text("\(dayNumber)")
-                .font(.system(.caption, design: .rounded, weight: (isToday || isSelected) ? .bold : .regular))
-                .foregroundStyle(dayTextColor(status: status, isToday: isToday, isSelected: isSelected))
+            VStack(spacing: 1) {
+                Text("\(dayNumber)")
+                    .font(.system(.caption, design: .rounded, weight: (isToday || isSelected) ? .bold : .regular))
+                    .foregroundStyle(dayTextColor(status: status, isToday: isToday, isSelected: isSelected))
+
+                if let tagsForDate, !tagsForDate(date).isEmpty {
+                    Circle()
+                        .fill(Color.appTerracotta)
+                        .frame(width: 5, height: 5)
+                } else {
+                    Color.clear.frame(width: 5, height: 5)
+                }
+            }
         }
         .frame(height: 36)
     }
@@ -311,6 +322,7 @@ struct PeriodCalendarView: View {
             legendDot(color: periodColor.opacity(0.55), label: "Period")
             legendDot(color: periodColor.opacity(0.12), label: "Predicted", dashed: true, dashColor: periodColor)
             legendDot(color: ovulationColor.opacity(0.35), label: "Ovulation", bordered: true, borderColor: ovulationColor)
+            legendDot(color: .appTerracotta, label: "Tagged")
             legendDot(color: .clear, label: "Today", bordered: true, borderColor: .appSoftBrown)
         }
         .frame(maxWidth: .infinity)

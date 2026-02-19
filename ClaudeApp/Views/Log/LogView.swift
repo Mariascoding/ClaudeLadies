@@ -18,7 +18,7 @@ struct LogView: View {
                     .padding(.horizontal, AppTheme.Spacing.md)
 
                     // Day log summary
-                    DayLogSummary(symptoms: viewModel.todaySymptoms)
+                    DayLogSummary(symptoms: viewModel.todaySymptoms, tags: viewModel.todayTags)
                         .padding(.horizontal, AppTheme.Spacing.md)
 
                     // Symptom picker
@@ -35,6 +35,33 @@ struct LogView: View {
                             onToggle: { symptom in
                                 withAnimation(AppTheme.gentleAnimation) {
                                     viewModel.toggleSymptom(symptom)
+                                }
+                            }
+                        )
+                    }
+                    .warmCard()
+                    .padding(.horizontal, AppTheme.Spacing.md)
+
+                    // Custom tags
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+                        HStack(spacing: AppTheme.Spacing.sm) {
+                            Image(systemName: "tag")
+                                .foregroundStyle(Color.appTerracotta)
+                            Text("Custom Tags")
+                                .warmHeadline()
+                        }
+
+                        TagInputView(
+                            currentTags: viewModel.todayTags,
+                            suggestions: viewModel.allKnownTags,
+                            onAdd: { tag in
+                                withAnimation(AppTheme.gentleAnimation) {
+                                    viewModel.addTag(tag)
+                                }
+                            },
+                            onRemove: { tag in
+                                withAnimation(AppTheme.gentleAnimation) {
+                                    viewModel.removeTag(tag)
                                 }
                             }
                         )
