@@ -118,11 +118,16 @@ final class InsightsViewModel {
             return
         }
 
+        // Fetch health logs for correlation analysis
+        let healthDescriptor = FetchDescriptor<HealthMetricLog>()
+        let healthLogs = (try? modelContext.fetch(healthDescriptor)) ?? []
+
         patternAnalysis = PatternAnalysisEngine.analyze(
             entries: entries,
             cycleLength: profile.cycleLength,
             periodLength: profile.periodLength,
-            lastPeriodStartDate: lastPeriodStart
+            lastPeriodStartDate: lastPeriodStart,
+            healthLogs: healthLogs
         )
     }
 

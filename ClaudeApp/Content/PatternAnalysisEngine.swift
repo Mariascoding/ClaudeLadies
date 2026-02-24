@@ -155,11 +155,20 @@ struct ProtocolRecommendation {
     let alternativeReason: String?
 }
 
+struct HealthCorrelation: Identifiable {
+    let id = UUID()
+    let metricType: HealthMetricType
+    let phaseAverages: [CyclePhase: Double]
+    let overallAverage: Double
+    let insight: String
+}
+
 struct PatternAnalysis {
     let dataCoverage: DataCoverage
     let clusterResults: [ClusterResult]
     let protocolRecommendation: ProtocolRecommendation?
     let hasEnoughData: Bool
+    var healthCorrelations: [HealthCorrelation] = []
 }
 
 // MARK: - Engine
@@ -172,7 +181,8 @@ enum PatternAnalysisEngine {
         entries: [SymptomEntry],
         cycleLength: Int,
         periodLength: Int,
-        lastPeriodStartDate: Date
+        lastPeriodStartDate: Date,
+        healthLogs: [HealthMetricLog] = []
     ) -> PatternAnalysis {
         let coverage = computeDataCoverage(entries: entries)
 
@@ -213,11 +223,19 @@ enum PatternAnalysisEngine {
 
         let recommendation = computeRecommendation(clusterResults: clusterResults)
 
+        let healthCorrelations = analyzeHealthCorrelations(
+            healthLogs: healthLogs,
+            cycleLength: cycleLength,
+            periodLength: periodLength,
+            lastPeriodStartDate: lastPeriodStartDate
+        )
+
         return PatternAnalysis(
             dataCoverage: coverage,
             clusterResults: clusterResults,
             protocolRecommendation: recommendation,
-            hasEnoughData: true
+            hasEnoughData: true,
+            healthCorrelations: healthCorrelations
         )
     }
 
@@ -507,6 +525,127 @@ enum PatternAnalysisEngine {
                 return "DAO Support can help manage histamine-related symptoms in your pattern."
             }
             return "Your \(clusterNames.joined(separator: " and ")) symptoms suggest DAO Support could help improve histamine tolerance."
+        }
+    }
+
+    // MARK: - Health Correlations
+
+    static func analyzeHealthCorrelations(
+        healthLogs: [HealthMetricLog],
+        cycleLength: Int,
+        periodLength: Int,
+        lastPeriodStartDate: Date
+    ) -> [HealthCorrelation] {
+        guard healthLogs.count >= 7 else { return [] }
+
+        var correlations: [HealthCorrelation] = []
+
+        // Group logs by phase
+        var phaseGroups: [CyclePhase: [HealthMetricLog]] = [:]
+        for log in healthLogs {
+            let position = CycleCalculator.currentPosition(
+                lastPeriodStart: lastPeriodStartDate,
+                cycleLength: cycleLength,
+                periodLength: periodLength,
+                on: log.date
+            )
+            phaseGroups[position.phase, default: []].append(log)
+        }
+
+        // Analyze each metric type
+        correlations.append(contentsOf: correlateMetric(
+            type: .sleep,
+            logs: healthLogs,
+            phaseGroups: phaseGroups,
+            extract: { $0.sleepDurationHours }
+        ))
+
+        correlations.append(contentsOf: correlateMetric(
+            type: .hrv,
+            logs: healthLogs,
+            phaseGroups: phaseGroups,
+            extract: { $0.hrvMs }
+        ))
+
+        correlations.append(contentsOf: correlateMetric(
+            type: .restingHeartRate,
+            logs: healthLogs,
+            phaseGroups: phaseGroups,
+            extract: { $0.restingHeartRateBpm }
+        ))
+
+        correlations.append(contentsOf: correlateMetric(
+            type: .basalBodyTemperature,
+            logs: healthLogs,
+            phaseGroups: phaseGroups,
+            extract: { $0.basalBodyTemperatureCelsius }
+        ))
+
+        correlations.append(contentsOf: correlateMetric(
+            type: .steps,
+            logs: healthLogs,
+            phaseGroups: phaseGroups,
+            extract: { $0.steps.map { Double($0) } }
+        ))
+
+        return correlations
+    }
+
+    private static func correlateMetric(
+        type: HealthMetricType,
+        logs: [HealthMetricLog],
+        phaseGroups: [CyclePhase: [HealthMetricLog]],
+        extract: (HealthMetricLog) -> Double?
+    ) -> [HealthCorrelation] {
+        let allValues = logs.compactMap { extract($0) }
+        guard allValues.count >= 5 else { return [] }
+
+        let overallAvg = allValues.reduce(0, +) / Double(allValues.count)
+
+        var phaseAverages: [CyclePhase: Double] = [:]
+        for (phase, phaseLogs) in phaseGroups {
+            let vals = phaseLogs.compactMap { extract($0) }
+            guard !vals.isEmpty else { continue }
+            phaseAverages[phase] = vals.reduce(0, +) / Double(vals.count)
+        }
+
+        guard phaseAverages.count >= 2 else { return [] }
+
+        let insight = generateHealthInsight(type: type, phaseAverages: phaseAverages, overall: overallAvg)
+
+        return [HealthCorrelation(
+            metricType: type,
+            phaseAverages: phaseAverages,
+            overallAverage: overallAvg,
+            insight: insight
+        )]
+    }
+
+    private static func generateHealthInsight(
+        type: HealthMetricType,
+        phaseAverages: [CyclePhase: Double],
+        overall: Double
+    ) -> String {
+        let sorted = phaseAverages.sorted { $0.value > $1.value }
+        guard let highest = sorted.first, let lowest = sorted.last else {
+            return "Tracking more data will reveal patterns."
+        }
+
+        switch type {
+        case .sleep:
+            return "You sleep most during your \(highest.key.displayName.lowercased()) phase (\(String(format: "%.1f", highest.value)) hrs) and least during \(lowest.key.displayName.lowercased()) (\(String(format: "%.1f", lowest.value)) hrs)."
+
+        case .hrv:
+            return "Your HRV peaks in the \(highest.key.displayName.lowercased()) phase (\(String(format: "%.0f", highest.value)) ms). Lower HRV during \(lowest.key.displayName.lowercased()) is a normal hormonal pattern."
+
+        case .restingHeartRate:
+            return "Resting heart rate is lowest during \(lowest.key.displayName.lowercased()) (\(String(format: "%.0f", lowest.value)) bpm) and rises in \(highest.key.displayName.lowercased()) \u{2014} a common progesterone effect."
+
+        case .basalBodyTemperature:
+            return "Temperature rises after ovulation due to progesterone. Your \(highest.key.displayName.lowercased()) phase averages \(String(format: "%.1f", highest.value))\u{00B0}C."
+
+        case .steps:
+            return "You\u{2019}re most active during \(highest.key.displayName.lowercased()) (\(String(format: "%.0f", highest.value)) steps) and gentler during \(lowest.key.displayName.lowercased())."
         }
     }
 }

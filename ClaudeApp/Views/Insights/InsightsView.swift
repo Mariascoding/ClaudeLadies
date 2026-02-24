@@ -76,6 +76,12 @@ struct InsightsView: View {
                     if let analysis = viewModel.patternAnalysis {
                         PatternInsightsView(analysis: analysis)
                             .padding(.horizontal, AppTheme.Spacing.md)
+
+                        // Health & cycle correlations
+                        if !analysis.healthCorrelations.isEmpty {
+                            HealthCorrelationView(correlations: analysis.healthCorrelations)
+                                .padding(.horizontal, AppTheme.Spacing.md)
+                        }
                     }
 
                     Spacer(minLength: AppTheme.Spacing.xxl)

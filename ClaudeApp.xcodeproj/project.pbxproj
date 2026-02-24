@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		87CD3619779E4E108B926444 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AB31742A6766A06ABC742538 /* HealthKit.framework */; };
 		A1B2C3D40004AA000B3D90 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4000DAA000B3D90 /* Supabase */; };
 		A1B2C3D40005AA000B3D90 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4000EAA000B3D90 /* Auth */; };
 /* End PBXBuildFile section */
@@ -32,14 +33,25 @@
 		4C90E58D2F381D1B000B3D90 /* ClaudeApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4C90E59B2F381D1D000B3D90 /* ClaudeAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClaudeAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4C90E5A52F381D1D000B3D90 /* ClaudeAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClaudeAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A1B2C3D40006AA000B3D90 /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
-		A1B2C3D40007AA000B3D90 /* AuthenticationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationService.swift; sourceTree = "<group>"; };
-		A1B2C3D40008AA000B3D90 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
+		AB31742A6766A06ABC742538 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AABB001122334455DEAD0001 /* Exceptions for "ClaudeApp" folder in "ClaudeApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4C90E58C2F381D1B000B3D90 /* ClaudeApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4C90E58F2F381D1B000B3D90 /* ClaudeApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AABB001122334455DEAD0001 /* Exceptions for "ClaudeApp" folder in "ClaudeApp" target */,
+			);
 			path = ClaudeApp;
 			sourceTree = "<group>";
 		};
@@ -62,6 +74,7 @@
 			files = (
 				A1B2C3D40004AA000B3D90 /* Supabase in Frameworks */,
 				A1B2C3D40005AA000B3D90 /* Auth in Frameworks */,
+				87CD3619779E4E108B926444 /* HealthKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -88,9 +101,8 @@
 				4C90E58F2F381D1B000B3D90 /* ClaudeApp */,
 				4C90E59E2F381D1D000B3D90 /* ClaudeAppTests */,
 				4C90E5A82F381D1D000B3D90 /* ClaudeAppUITests */,
+				B687106895D06AA330DAFED5 /* Frameworks */,
 				4C90E58E2F381D1B000B3D90 /* Products */,
-				A1B2C3D40009AA000B3D90 /* Services */,
-				A1B2C3D4000BAA000B3D90 /* Views */,
 			);
 			sourceTree = "<group>";
 		};
@@ -104,32 +116,12 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A1B2C3D40009AA000B3D90 /* Services */ = {
+		B687106895D06AA330DAFED5 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				A1B2C3D40006AA000B3D90 /* SupabaseManager.swift */,
-				A1B2C3D40007AA000B3D90 /* AuthenticationService.swift */,
+				AB31742A6766A06ABC742538 /* HealthKit.framework */,
 			);
-			name = Services;
-			path = ClaudeApp/Services;
-			sourceTree = "<group>";
-		};
-		A1B2C3D4000BAA000B3D90 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				A1B2C3D4000AAA000B3D90 /* Auth */,
-			);
-			name = Views;
-			path = ClaudeApp/Views;
-			sourceTree = "<group>";
-		};
-		A1B2C3D4000AAA000B3D90 /* Auth */ = {
-			isa = PBXGroup;
-			children = (
-				A1B2C3D40008AA000B3D90 /* AuthenticationView.swift */,
-			);
-			name = Auth;
-			path = Auth;
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -237,10 +229,10 @@
 			);
 			mainGroup = 4C90E5842F381D1B000B3D90;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			packageReferences = (
 				A1B2C3D4000CAA000B3D90 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
+			preferredProjectObjectVersion = 77;
 			productRefGroup = 4C90E58E2F381D1B000B3D90 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -438,6 +430,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ClaudeApp/Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "ClaudeApp reads health data to correlate with your cycle phases for personalized insights.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -475,6 +469,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ClaudeApp/Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "ClaudeApp reads health data to correlate with your cycle phases for personalized insights.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;

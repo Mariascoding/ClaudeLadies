@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthenticationService.self) private var authService
     @Query private var profiles: [UserProfile]
+    @AppStorage("appColorTheme") private var selectedTheme = "classic"
     @State private var showSignIn = false
 
     private var profile: UserProfile? { profiles.first }
@@ -24,6 +25,12 @@ struct SettingsView: View {
                         wellnessGoalCard(profile)
                         nutritionProtocolCard(profile)
                     }
+
+                    // Theme
+                    themeCard
+
+                    // Health devices
+                    DeviceLinkingCard()
 
                     // Cloud backup
                     backupCard
@@ -144,6 +151,80 @@ struct SettingsView: View {
 
             Text("Tap a selected protocol again to deselect.")
                 .captionStyle()
+        }
+        .warmCard()
+        .padding(.horizontal, AppTheme.Spacing.md)
+    }
+
+    private var themeCard: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "paintpalette.fill")
+                    .foregroundStyle(Color.appRose)
+                Text("Color Theme")
+                    .warmHeadline()
+            }
+
+            HStack(spacing: 0) {
+                // Auto option
+                let autoSelected = selectedTheme == "auto"
+                Button {
+                    withAnimation(AppTheme.gentleAnimation) {
+                        selectedTheme = "auto"
+                    }
+                } label: {
+                    VStack(spacing: 6) {
+                        Circle()
+                            .fill(
+                                AngularGradient(
+                                    colors: [
+                                        ColorTheme.winter.previewColor,
+                                        ColorTheme.spring.previewColor,
+                                        ColorTheme.summer.previewColor,
+                                        ColorTheme.autumn.previewColor,
+                                        ColorTheme.winter.previewColor
+                                    ],
+                                    center: .center
+                                )
+                            )
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Circle()
+                                    .strokeBorder(Color.appSoftBrown, lineWidth: autoSelected ? 2.5 : 0)
+                            )
+                            .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                        Text("Auto")
+                            .font(.system(.caption2, design: .rounded, weight: .medium))
+                            .foregroundStyle(autoSelected ? Color.appSoftBrown : Color.appSoftBrown.opacity(0.5))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                // Manual themes
+                ForEach(ColorTheme.allCases) { theme in
+                    let isSelected = selectedTheme == theme.rawValue
+                    Button {
+                        withAnimation(AppTheme.gentleAnimation) {
+                            selectedTheme = theme.rawValue
+                        }
+                    } label: {
+                        VStack(spacing: 6) {
+                            Circle()
+                                .fill(theme.previewColor)
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(Color.appSoftBrown, lineWidth: isSelected ? 2.5 : 0)
+                                )
+                                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                            Text(theme.displayName)
+                                .font(.system(.caption2, design: .rounded, weight: .medium))
+                                .foregroundStyle(isSelected ? Color.appSoftBrown : Color.appSoftBrown.opacity(0.5))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
         }
         .warmCard()
         .padding(.horizontal, AppTheme.Spacing.md)

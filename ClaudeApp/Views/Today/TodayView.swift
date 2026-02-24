@@ -3,6 +3,7 @@ import SwiftData
 
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(HealthDataManager.self) private var healthManager
     @State private var viewModel = TodayViewModel()
     @StateObject private var moonState = MoonState()
 
@@ -41,6 +42,15 @@ struct TodayView: View {
                         .affirmationStyle()
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, AppTheme.Spacing.lg)
+
+                    // Health metrics
+                    if let summary = healthManager.todaySummary {
+                        HealthMetricsSummaryCard(
+                            summary: summary,
+                            phase: guidance.phase
+                        )
+                        .padding(.horizontal, AppTheme.Spacing.md)
+                    }
 
                     // Do Nothing Well banner
                     if guidance.doNothingWellDay {
@@ -86,6 +96,9 @@ struct TodayView: View {
         }
         .task {
             await moonState.load()
+            if healthManager.hasAnyConnectedSource {
+                await healthManager.fetchTodayData()
+            }
         }
     }
 
