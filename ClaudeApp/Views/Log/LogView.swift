@@ -39,6 +39,7 @@ struct LogView: View {
                             }
                         )
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .warmCard()
                     .padding(.horizontal, AppTheme.Spacing.md)
 
