@@ -269,6 +269,7 @@ struct SettingsView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .warmCard()
         .padding(.horizontal, AppTheme.Spacing.md)
     }
@@ -289,6 +290,7 @@ struct SettingsView: View {
             Text("One day. One state. One clear orientation.")
                 .affirmationStyle()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .warmCard()
         .padding(.horizontal, AppTheme.Spacing.md)
     }
