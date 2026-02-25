@@ -5,10 +5,14 @@ struct MoonView: View {
     @ObservedObject var moonState: MoonState
 
     private let moonSize: CGFloat = 200
-    private let color: Color = .red
 
     var displayMoonDay: Int {
         moonState.moonDay + dayOffset
+    }
+
+    /// Warm amber-gold glow matching the mineral moon palette
+    private var glowColor: Color {
+        Color(red: 0.92, green: 0.78, blue: 0.55)
     }
 
     var body: some View {
@@ -21,12 +25,38 @@ struct MoonView: View {
                 brightness: 1.0,
                 blurRadius: 80,
                 opacity: 0.9,
-                color: color
+                color: glowColor
             )
+
+            // Moon image with lavender-peach mineral tint
             Image("moon_full")
                 .resizable()
                 .scaledToFit()
                 .frame(width: moonSize, height: moonSize)
+                .saturation(1.4)
+                .overlay(
+                    ZStack {
+                        // Lavender wash for the maria regions
+                        Circle()
+                            .fill(Color(red: 0.75, green: 0.65, blue: 0.88).opacity(0.18))
+                            .blendMode(.plusLighter)
+
+                        // Warm peach highlights
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        Color(red: 0.98, green: 0.88, blue: 0.78).opacity(0.12),
+                                        Color(red: 0.85, green: 0.72, blue: 0.85).opacity(0.15)
+                                    ],
+                                    center: .center,
+                                    startRadius: 10,
+                                    endRadius: moonSize / 2
+                                )
+                            )
+                            .blendMode(.overlay)
+                    }
+                )
                 .clipShape(Circle())
 
             // 🌘 Realistic Shadow Layer
@@ -37,7 +67,6 @@ struct MoonView: View {
                 opacity: 0.5
             )
 
-
             // 🌘 Primary Light Layer
             MoonGlow(
                 currentMoonDay: displayMoonDay,
@@ -45,7 +74,7 @@ struct MoonView: View {
                 brightness: 0,
                 blurRadius: 4,
                 opacity: 0.4,
-                color: color
+                color: glowColor
             )
 
             // 🌘 Added Brighness Layer
@@ -55,7 +84,7 @@ struct MoonView: View {
                 brightness: 2,
                 blurRadius: 4,
                 opacity: 0.1,
-                color: color
+                color: glowColor
             )
 
 

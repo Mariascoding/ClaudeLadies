@@ -57,6 +57,7 @@ struct DailyTimelineView: View {
                 .guidanceText()
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .warmCard()
     }
 

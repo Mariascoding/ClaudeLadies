@@ -139,6 +139,57 @@ enum ColorTheme: String, CaseIterable, Identifiable {
         }
     }
 
+    // MARK: - Rose
+
+    var rose: Color {
+        switch self {
+        case .classic:
+            Color(red: 212/255, green: 131/255, blue: 143/255)
+        case .winter:
+            Color(red: 178/255, green: 100/255, blue: 120/255)
+        case .spring:
+            Color(red: 210/255, green: 140/255, blue: 168/255)
+        case .summer:
+            Color(red: 218/255, green: 125/255, blue: 110/255)
+        case .autumn:
+            Color(red: 175/255, green: 130/255, blue: 150/255)
+        }
+    }
+
+    // MARK: - Sage
+
+    var sage: Color {
+        switch self {
+        case .classic:
+            Color(red: 163/255, green: 177/255, blue: 138/255)
+        case .winter:
+            Color(red: 120/255, green: 158/255, blue: 150/255)
+        case .spring:
+            Color(red: 140/255, green: 180/255, blue: 130/255)
+        case .summer:
+            Color(red: 170/255, green: 168/255, blue: 115/255)
+        case .autumn:
+            Color(red: 128/255, green: 152/255, blue: 158/255)
+        }
+    }
+
+    // MARK: - Terracotta
+
+    var terracotta: Color {
+        switch self {
+        case .classic:
+            Color(red: 201/255, green: 123/255, blue: 99/255)
+        case .winter:
+            Color(red: 165/255, green: 108/255, blue: 130/255)
+        case .spring:
+            Color(red: 205/255, green: 140/255, blue: 118/255)
+        case .summer:
+            Color(red: 208/255, green: 135/255, blue: 68/255)
+        case .autumn:
+            Color(red: 158/255, green: 122/255, blue: 128/255)
+        }
+    }
+
     // MARK: - Adaptive Colors
 
     var cream: Color {

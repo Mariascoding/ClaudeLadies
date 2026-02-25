@@ -14,10 +14,12 @@ struct MoonShadow: View {
     let blurRadius: CGFloat
     let opacity: Double
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color.black.opacity(opacity))
+                .fill(shadowColor)
                 .mask(
                     Circle()
                         .fill(Color.black)
@@ -30,5 +32,11 @@ struct MoonShadow: View {
         }
         .frame(width: moonSize, height: moonSize)
         .blur(radius: blurRadius)
+    }
+
+    private var shadowColor: Color {
+        colorScheme == .dark
+            ? Color.black.opacity(opacity)
+            : Color(red: 0.62, green: 0.55, blue: 0.68).opacity(0.65)
     }
 }
