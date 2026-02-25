@@ -14,6 +14,6 @@ extension View {
             .padding(padding)
             .background(Color.appWarmWhite)
             .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.lg))
-            .shadow(color: .black.opacity(0.06), radius: AppTheme.softShadowRadius, y: AppTheme.softShadowY)
+            .shadow(color: AppTheme.softShadow, radius: AppTheme.softShadowRadius, y: AppTheme.softShadowY)
     }
 }

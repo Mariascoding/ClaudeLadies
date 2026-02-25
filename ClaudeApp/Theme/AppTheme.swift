@@ -21,7 +21,13 @@ enum AppTheme {
     }
 
     // MARK: - Shadows
-    static let softShadow: some ShapeStyle = Color.black.opacity(0.06)
+    static var softShadow: Color {
+        Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor.black.withAlphaComponent(0.3)
+                : UIColor.black.withAlphaComponent(0.06)
+        })
+    }
     static let softShadowRadius: CGFloat = 8
     static let softShadowY: CGFloat = 2
 
