@@ -181,11 +181,10 @@ struct LunarMirrorView: View {
                     .padding(.bottom, AppTheme.Spacing.md)
             }
 
-            // Wisdom overlay (tap to toggle)
-            if showingWisdom {
-                wisdomOverlay
-                    .transition(.opacity)
-            }
+            // Wisdom overlay
+            wisdomOverlay
+                .opacity(showingWisdom ? 1 : 0)
+                .allowsHitTesting(showingWisdom)
 
             // Day/night toggle
             VStack {
