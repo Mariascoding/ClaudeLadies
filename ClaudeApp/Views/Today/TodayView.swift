@@ -23,18 +23,17 @@ struct TodayView: View {
                         cycleLength: viewModel.cycleLength
                     )
 
-                    // Moon phase
-                    MoonView(moonState: moonState)
-                        .frame(height: 220)
-
-                    // Cycle–Moon alignment
+                    // Lunar Mirror
                     if moonState.isLoaded, let position = viewModel.cyclePosition {
-                        CycleMoonAlignmentView(
-                            moonPhase: moonState.moonPhase,
+                        LunarMirrorCard(
+                            moonState: moonState,
                             dayInCycle: position.dayInCycle,
                             cycleLength: viewModel.cycleLength,
-                            phase: position.phase
+                            periodLength: viewModel.periodLength
                         )
+                    } else {
+                        MoonView(moonState: moonState)
+                            .frame(height: 220)
                     }
 
                     // Affirmation
@@ -136,17 +135,6 @@ struct TodayView: View {
     }
 
     private var backgroundGradient: some View {
-        Group {
-            if let phase = viewModel.guidance?.phase {
-                LinearGradient(
-                    colors: phase.gradientColors,
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            } else {
-                Color.appCream.ignoresSafeArea()
-            }
-        }
+        SkyBackgroundView()
     }
 }

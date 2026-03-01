@@ -138,7 +138,7 @@ enum NervousSystemContent {
             }
         case .overstimulated:
             switch phase {
-            case .menstrual: "Close your eyes. Count your breaths backward from 10. If you lose count, start again. There is no wrong way."
+            case .menstrual: "Close your eyes. Count your breaths backward from 10. If you lose count, simply begin again. Every path here is the right one."
             case .follicular: "Name one thing you can taste, one you can smell, one you can touch. Three senses, three anchors."
             case .ovulation: "Put your hand over your heart. Feel it beating. It has beaten every moment of your life without you asking. Trust your body."
             case .luteal: "Find something to hold — a stone, a pen, a pillow. Squeeze it, then release. Squeeze, then release. You can let go."
@@ -159,17 +159,17 @@ enum NervousSystemContent {
             }
         case .sensitive:
             switch phase {
-            case .menstrual: "My tenderness is not a flaw. It is how I feel the world deeply."
+            case .menstrual: "My tenderness is a gift. It is how I feel the world deeply."
             case .follicular: "I can be open and protected at the same time."
             case .ovulation: "I feel everything, and I can hold it all."
             case .luteal: "My sensitivity is my compass. I trust where it points."
             }
         case .overstimulated:
             switch phase {
-            case .menstrual: "I give myself full permission to withdraw. The world will wait."
-            case .follicular: "I can slow down even when energy rises. I choose my pace."
-            case .ovulation: "I do not need to match the world's intensity. My calm is my power."
-            case .luteal: "I release the need to manage everything. I only need to manage this breath."
+            case .menstrual: "I give myself full permission to rest. The world will wait."
+            case .follicular: "I choose my own pace, even as energy rises. I move with intention."
+            case .ovulation: "My calm is my power. I choose my own intensity."
+            case .luteal: "I focus on this one breath. Everything else can wait."
             }
         }
     }
