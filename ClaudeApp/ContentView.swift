@@ -19,6 +19,10 @@ struct ContentView: View {
                 InsightsView()
             }
 
+            Tab("Lab", systemImage: "flask.fill") {
+                LabView()
+            }
+
             Tab("Settings", systemImage: "gearshape") {
                 SettingsView()
             }
