@@ -43,6 +43,7 @@ struct LunarMirrorCard: View {
     let dayInCycle: Int
     let cycleLength: Int
     let periodLength: Int
+    var scrollOffset: CGFloat = 0
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var showingWisdom = false
@@ -90,6 +91,12 @@ struct LunarMirrorCard: View {
 
     private var textSecondary: Double {
         isNightMode ? 0.7 : 0.55
+    }
+
+    private var alignmentTextOpacity: Double {
+        let fadeEnd: CGFloat = 60
+        let clamped = min(max(scrollOffset, 0), fadeEnd)
+        return Double(1.0 - clamped / fadeEnd)
     }
 
     private var scrimColor: Color {
@@ -143,7 +150,7 @@ struct LunarMirrorCard: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: AppTheme.Spacing.md) {
+        VStack(spacing: 0) {
             ZStack {
                 MoonView(moonState: moonState)
 
@@ -155,6 +162,8 @@ struct LunarMirrorCard: View {
             .frame(height: 240)
 
             alignmentOverlay
+                .opacity(alignmentTextOpacity)
+                .padding(.top, AppTheme.Spacing.xs)
                 .padding(.bottom, AppTheme.Spacing.md)
         }
         .animation(.easeInOut(duration: 0.5), value: colorScheme)

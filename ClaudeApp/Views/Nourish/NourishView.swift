@@ -74,6 +74,14 @@ struct NourishView: View {
                 }
             }
 
+            if let selected = viewModel.selectedProtocol {
+                Text(selected.focusDescription)
+                    .font(.system(.caption, design: .serif))
+                    .foregroundStyle(selected.color.opacity(0.85))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             if let goal = viewModel.wellnessGoal {
                 HStack(spacing: AppTheme.Spacing.xs) {
                     Image(systemName: goal.icon)

@@ -23,6 +23,14 @@ enum NutritionProtocol: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    var focusDescription: String {
+        switch self {
+        case .seedCycling: "Balance estrogen and progesterone naturally through phase-specific seeds"
+        case .cellDetox: "Clear toxins and support liver pathways for hormonal clarity"
+        case .daoSt: "Reduce histamine overload and calm inflammatory flare-ups"
+        }
+    }
+
     var icon: String {
         switch self {
         case .seedCycling: "leaf.fill"

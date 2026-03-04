@@ -28,6 +28,14 @@ struct ContentView: View {
             }
         }
         .tint(.appRose)
+        .onAppear {
+            let appearance = UITabBarAppearance()
+            appearance.configureWithDefaultBackground()
+            appearance.backgroundEffect = UIBlurEffect(style: .systemThinMaterial)
+            appearance.backgroundColor = UIColor(Color.appCream.opacity(0.3))
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
     }
 }
 
