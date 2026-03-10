@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum ColorTheme: String, CaseIterable, Identifiable {
-    case classic, winter, spring, summer, autumn
+    case classic, winter, spring, summer, autumn, lux
 
     var id: String { rawValue }
 
@@ -30,6 +30,7 @@ enum ColorTheme: String, CaseIterable, Identifiable {
         case .spring: "Spring"
         case .summer: "Summer"
         case .autumn: "Autumn"
+        case .lux: "Lux"
         }
     }
 
@@ -51,6 +52,8 @@ enum ColorTheme: String, CaseIterable, Identifiable {
             Color(red: 253/255, green: 244/255, blue: 220/255)
         case .autumn:
             Color(red: 224/255, green: 232/255, blue: 240/255)
+        case .lux:
+            Color(red: 248/255, green: 240/255, blue: 225/255)
         }
     }
 
@@ -68,6 +71,8 @@ enum ColorTheme: String, CaseIterable, Identifiable {
             Color(red: 30/255, green: 26/255, blue: 16/255)
         case .autumn:
             Color(red: 20/255, green: 24/255, blue: 32/255)
+        case .lux:
+            Color(red: 26/255, green: 22/255, blue: 18/255)
         }
     }
 
@@ -85,6 +90,8 @@ enum ColorTheme: String, CaseIterable, Identifiable {
             Color(red: 255/255, green: 251/255, blue: 235/255)
         case .autumn:
             Color(red: 238/255, green: 244/255, blue: 250/255)
+        case .lux:
+            Color(red: 255/255, green: 250/255, blue: 240/255)
         }
     }
 
@@ -102,6 +109,8 @@ enum ColorTheme: String, CaseIterable, Identifiable {
             Color(red: 42/255, green: 37/255, blue: 24/255)
         case .autumn:
             Color(red: 30/255, green: 36/255, blue: 48/255)
+        case .lux:
+            Color(red: 38/255, green: 32/255, blue: 26/255)
         }
     }
 
@@ -119,6 +128,8 @@ enum ColorTheme: String, CaseIterable, Identifiable {
             Color(red: 140/255, green: 100/255, blue: 50/255)
         case .autumn:
             Color(red: 75/255, green: 95/255, blue: 115/255)
+        case .lux:
+            Color(red: 130/255, green: 100/255, blue: 70/255)
         }
     }
 
@@ -136,6 +147,8 @@ enum ColorTheme: String, CaseIterable, Identifiable {
             Color(red: 224/255, green: 200/255, blue: 144/255)
         case .autumn:
             Color(red: 184/255, green: 200/255, blue: 216/255)
+        case .lux:
+            Color(red: 220/255, green: 200/255, blue: 168/255)
         }
     }
 
@@ -153,6 +166,8 @@ enum ColorTheme: String, CaseIterable, Identifiable {
             Color(red: 218/255, green: 125/255, blue: 110/255)
         case .autumn:
             Color(red: 175/255, green: 130/255, blue: 150/255)
+        case .lux:
+            Color(red: 200/255, green: 145/255, blue: 125/255)
         }
     }
 
@@ -170,6 +185,8 @@ enum ColorTheme: String, CaseIterable, Identifiable {
             Color(red: 170/255, green: 168/255, blue: 115/255)
         case .autumn:
             Color(red: 128/255, green: 152/255, blue: 158/255)
+        case .lux:
+            Color(red: 158/255, green: 155/255, blue: 120/255)
         }
     }
 
@@ -187,6 +204,8 @@ enum ColorTheme: String, CaseIterable, Identifiable {
             Color(red: 208/255, green: 135/255, blue: 68/255)
         case .autumn:
             Color(red: 158/255, green: 122/255, blue: 128/255)
+        case .lux:
+            Color(red: 192/255, green: 145/255, blue: 85/255)
         }
     }
 

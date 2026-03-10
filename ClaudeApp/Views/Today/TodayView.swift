@@ -9,6 +9,7 @@ struct TodayView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var rawScrollOffset: CGFloat = 0
     @State private var initialScrollY: CGFloat = 0
+    @State private var showingMoonWisdom = false
 
     // Moon drifts down when scrolling up only
     private var moonDriftOffset: CGFloat {
@@ -67,7 +68,8 @@ struct TodayView: View {
                                 dayInCycle: position.dayInCycle,
                                 cycleLength: viewModel.cycleLength,
                                 periodLength: viewModel.periodLength,
-                                scrollOffset: scrollOffset
+                                scrollOffset: scrollOffset,
+                                showingWisdom: $showingMoonWisdom
                             )
                         } else {
                             MoonView(moonState: moonState)
@@ -100,6 +102,12 @@ struct TodayView: View {
 
                         Color.clear
                             .frame(height: 480)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    showingMoonWisdom.toggle()
+                                }
+                            }
 
                         // Affirmation
                         Text("\"\(guidance.affirmation)\"")

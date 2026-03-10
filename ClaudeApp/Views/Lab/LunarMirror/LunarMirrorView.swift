@@ -7,6 +7,7 @@ struct LunarMirrorView: View {
     @State private var dayInCycle: Double = 1
     @State private var cycleLength: Double = 28
     @State private var periodLength: Double = 5
+    @State private var showingWisdom = false
     var body: some View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.lg) {
@@ -14,7 +15,8 @@ struct LunarMirrorView: View {
                     moonState: moonState,
                     dayInCycle: Int(dayInCycle),
                     cycleLength: Int(cycleLength),
-                    periodLength: Int(periodLength)
+                    periodLength: Int(periodLength),
+                    showingWisdom: $showingWisdom
                 )
                 .animation(AppTheme.gentleAnimation, value: moonState.moonPhase)
                 .animation(AppTheme.gentleAnimation, value: dayInCycle)

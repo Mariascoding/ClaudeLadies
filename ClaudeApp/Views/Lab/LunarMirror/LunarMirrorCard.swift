@@ -45,8 +45,9 @@ struct LunarMirrorCard: View {
     let periodLength: Int
     var scrollOffset: CGFloat = 0
 
+    @Binding var showingWisdom: Bool
+
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showingWisdom = false
     @State private var showWisdomTitle = false
     @State private var showWisdomContent = false
 
@@ -63,6 +64,7 @@ struct LunarMirrorCard: View {
         case .spring:   return Color(red: 0.10, green: 0.08, blue: 0.14)
         case .summer:   return Color(red: 0.12, green: 0.10, blue: 0.06)
         case .autumn:   return Color(red: 0.08, green: 0.10, blue: 0.18)
+        case .lux:      return Color(red: 0.10, green: 0.08, blue: 0.05)
         }
     }
 
@@ -73,6 +75,7 @@ struct LunarMirrorCard: View {
         case .spring:   return [Color(red: 0.52, green: 0.50, blue: 0.75), Color(red: 0.68, green: 0.65, blue: 0.82), Color(red: 0.84, green: 0.80, blue: 0.88)]
         case .summer:   return [Color(red: 0.55, green: 0.58, blue: 0.72), Color(red: 0.72, green: 0.72, blue: 0.80), Color(red: 0.90, green: 0.88, blue: 0.78)]
         case .autumn:   return [Color(red: 0.45, green: 0.62, blue: 0.85), Color(red: 0.62, green: 0.76, blue: 0.92), Color(red: 0.78, green: 0.87, blue: 0.95)]
+        case .lux:      return [Color(red: 0.55, green: 0.48, blue: 0.38), Color(red: 0.72, green: 0.66, blue: 0.55), Color(red: 0.88, green: 0.84, blue: 0.76)]
         }
     }
 
@@ -169,29 +172,32 @@ struct LunarMirrorCard: View {
         .animation(.easeInOut(duration: 0.5), value: colorScheme)
         .contentShape(Rectangle())
         .onTapGesture {
-            if showingWisdom {
-                withAnimation(.easeIn(duration: 0.25)) {
-                    showWisdomTitle = false
-                    showWisdomContent = false
-                }
-                withAnimation(.easeOut(duration: 0.3)) {
-                    showingWisdom = false
-                }
-            } else {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    showingWisdom = true
-                }
+            withAnimation(.easeOut(duration: 0.3)) {
+                showingWisdom.toggle()
+            }
+        }
+        .onChange(of: showingWisdom) { _, newValue in
+            if newValue {
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 1.0).delay(0.05)) {
                     showWisdomTitle = true
                 }
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 1.0).delay(0.25)) {
                     showWisdomContent = true
                 }
+            } else {
+                withAnimation(.easeIn(duration: 0.25)) {
+                    showWisdomTitle = false
+                    showWisdomContent = false
+                }
             }
         }
     }
 
     // MARK: - Alignment Overlay
+
+    private var profileAccentColor: Color {
+        isNightMode ? currentProfile.color : currentProfile.color.opacity(0.8)
+    }
 
     private var alignmentOverlay: some View {
         VStack(spacing: AppTheme.Spacing.xs) {
@@ -202,7 +208,7 @@ struct LunarMirrorCard: View {
             HStack(spacing: AppTheme.Spacing.xs) {
                 Text("\(alignmentPercent)%")
                     .font(.system(.subheadline, design: .rounded, weight: .bold))
-                    .foregroundStyle(currentProfile.color)
+                    .foregroundStyle(textPrimary.opacity(0.85))
                 Text("\(currentProfile.name) Woman")
                     .font(.system(.subheadline, design: .serif, weight: .medium))
                     .foregroundStyle(textPrimary.opacity(0.9))
@@ -212,10 +218,10 @@ struct LunarMirrorCard: View {
                 ForEach(Array(currentProfile.traits.prefix(3).enumerated()), id: \.offset) { _, trait in
                     Text(trait)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(currentProfile.color)
+                        .foregroundStyle(textPrimary.opacity(0.8))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(currentProfile.color.opacity(isNightMode ? 0.2 : 0.15))
+                        .background(textPrimary.opacity(isNightMode ? 0.15 : 0.1))
                         .clipShape(Capsule())
                 }
             }
