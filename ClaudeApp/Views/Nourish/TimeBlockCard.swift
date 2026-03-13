@@ -25,7 +25,7 @@ struct TimeBlockCard: View {
                 Spacer()
 
                 Text("\(completedCount)/\(timeBlock.totalCount)")
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(completedCount == timeBlock.totalCount && timeBlock.totalCount > 0 ? accentColor : Color.appSoftBrown.opacity(0.5))
             }
 
@@ -46,7 +46,7 @@ struct TimeBlockCard: View {
     }
 
     private func categorySection(_ category: NutritionItemCategory, items: [NutritionItem]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
             HStack(spacing: AppTheme.Spacing.xs) {
                 Image(systemName: category.icon)
                     .font(.caption)
@@ -54,7 +54,7 @@ struct TimeBlockCard: View {
                     .frame(width: 16)
 
                 Text(category.displayName)
-                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown.opacity(0.5))
             }
 
@@ -65,7 +65,7 @@ struct TimeBlockCard: View {
                     accentColor: accentColor,
                     onToggle: { onToggle(item) }
                 )
-                .padding(.leading, 20)
+                .padding(.leading, AppTheme.Spacing.lg)
             }
         }
     }

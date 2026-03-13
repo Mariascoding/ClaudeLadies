@@ -67,7 +67,7 @@ struct PhaseInfoCard: View {
                         .frame(width: 24)
 
                     Text(title)
-                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                         .foregroundStyle(Color.appSoftBrown)
 
                     Spacer()
@@ -87,7 +87,7 @@ struct PhaseInfoCard: View {
                     .guidanceText()
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, AppTheme.Spacing.sm)
-                    .padding(.leading, 32)
+                    .padding(.leading, AppTheme.Spacing.xl)
                     .transition(.opacity.combined(with: .identity))
             }
 

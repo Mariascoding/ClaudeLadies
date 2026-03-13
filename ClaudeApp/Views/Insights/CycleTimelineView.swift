@@ -20,12 +20,12 @@ struct CycleTimelineView: View {
                             let duration = boundary.endDay - boundary.startDay + 1
                             let fraction = CGFloat(duration) / CGFloat(cycleLength)
 
-                            RoundedRectangle(cornerRadius: 6)
+                            RoundedRectangle(cornerRadius: AppTheme.Radius.sm)
                                 .fill(boundary.phase.accentColor.opacity(0.3))
                                 .frame(width: max(0, (width - CGFloat(boundaries.count - 1) * 2) * fraction))
                                 .overlay(
                                     Text(boundary.phase.innerSeason.replacingOccurrences(of: "Inner ", with: ""))
-                                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                                        .font(.system(size: 9, weight: .medium, design: AppTheme.fontFamily))
                                         .foregroundStyle(Color.appSoftBrown.opacity(0.7))
                                 )
                         }

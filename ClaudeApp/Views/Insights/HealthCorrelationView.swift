@@ -30,7 +30,7 @@ struct HealthCorrelationView: View {
                     .font(.caption)
                     .foregroundStyle(Color.appTerracotta)
                 Text(correlation.metricType.displayName)
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown)
             }
 
@@ -38,7 +38,7 @@ struct HealthCorrelationView: View {
             phaseBarChart(correlation)
 
             Text(correlation.insight)
-                .font(.system(.caption, design: .rounded))
+                .font(.system(.caption, design: AppTheme.fontFamily))
                 .foregroundStyle(Color.appSoftBrown.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -54,19 +54,19 @@ struct HealthCorrelationView: View {
             ForEach(CyclePhase.allCases, id: \.self) { phase in
                 let value = correlation.phaseAverages[phase]
 
-                VStack(spacing: 4) {
+                VStack(spacing: AppTheme.Spacing.xs) {
                     if let value {
                         Text(formatValue(value, type: correlation.metricType))
-                            .font(.system(.caption2, design: .rounded, weight: .medium))
+                            .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                             .foregroundStyle(Color.appSoftBrown.opacity(0.7))
                     }
 
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: AppTheme.Radius.sm)
                         .fill(phase.accentColor.opacity(value != nil ? 0.7 : 0.15))
                         .frame(height: barHeight(value: value, maxValue: maxValue))
 
                     Text(phaseAbbreviation(phase))
-                        .font(.system(size: 9, design: .rounded))
+                        .font(.system(size: 9, design: AppTheme.fontFamily))
                         .foregroundStyle(Color.appSoftBrown.opacity(0.5))
                 }
                 .frame(maxWidth: .infinity)

@@ -179,7 +179,7 @@ struct TodayView: View {
         HStack(spacing: AppTheme.Spacing.sm) {
             Image(systemName: "exclamationmark.circle.fill")
             Text("Period is \(viewModel.delayDays) day\(viewModel.delayDays == 1 ? "" : "s") late")
-                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
         }
         .foregroundStyle(Color.appRose)
         .frame(maxWidth: .infinity)

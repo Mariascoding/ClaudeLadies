@@ -14,14 +14,14 @@ struct NutritionCheckItem: View {
                     .foregroundStyle(isCompleted ? accentColor : Color.appSoftBrown.opacity(0.3))
 
                 Text(item.name)
-                    .font(.system(.body, design: .serif))
+                    .font(.system(.body, design: AppTheme.fontFamilySerif))
                     .foregroundStyle(isCompleted ? Color.appSoftBrown.opacity(0.4) : Color.appSoftBrown.opacity(0.85))
                     .strikethrough(isCompleted, color: Color.appSoftBrown.opacity(0.3))
                     .fixedSize(horizontal: false, vertical: true)
 
                 Spacer()
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, AppTheme.Spacing.xs)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

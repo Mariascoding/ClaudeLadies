@@ -84,7 +84,7 @@ struct MoonPlaygroundView: View {
             Text(label)
                 .captionStyle()
             Text(value)
-                .font(.system(.body, design: .rounded, weight: .semibold))
+                .font(.system(.body, design: AppTheme.fontFamily, weight: .semibold))
                 .foregroundStyle(Color.appSoftBrown)
         }
         .frame(maxWidth: .infinity)
@@ -149,7 +149,7 @@ struct MoonPlaygroundView: View {
                     .font(.title3)
                     .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
                 Text(label)
-                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
             }
             .frame(maxWidth: .infinity)

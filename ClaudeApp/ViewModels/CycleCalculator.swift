@@ -9,6 +9,7 @@ enum CycleCalculator {
     }
 
     /// Computes the current cycle position given the last period start date and cycle parameters.
+    /// Days keep counting past cycleLength — the luteal phase extends until a new period is logged.
     static func currentPosition(
         lastPeriodStart: Date,
         cycleLength: Int,
@@ -20,13 +21,19 @@ enum CycleCalculator {
         let today = calendar.startOfDay(for: date)
 
         let totalDays = calendar.dateComponents([.day], from: startOfLastPeriod, to: today).day ?? 0
-        let dayInCycle = (totalDays % cycleLength) + 1
+        let dayInCycle = totalDays + 1
 
         let phases = phaseDays(cycleLength: cycleLength, periodLength: periodLength)
-        let (phase, dayInPhase) = phaseFor(dayInCycle: dayInCycle, phases: phases)
+        let (phase, dayInPhase) = phaseFor(dayInCycle: dayInCycle, phases: phases, cycleLength: cycleLength)
 
         let phaseDuration = phases[phase] ?? 1
-        let phaseProgress = Double(dayInPhase) / Double(phaseDuration)
+        let phaseProgress: Double
+        if dayInCycle > cycleLength {
+            // Past expected cycle length — cap progress at 1.0
+            phaseProgress = 1.0
+        } else {
+            phaseProgress = Double(dayInPhase) / Double(phaseDuration)
+        }
 
         return CyclePosition(
             dayInCycle: dayInCycle,
@@ -69,7 +76,7 @@ enum CycleCalculator {
         return boundaries
     }
 
-    private static func phaseFor(dayInCycle: Int, phases: [CyclePhase: Int]) -> (CyclePhase, Int) {
+    private static func phaseFor(dayInCycle: Int, phases: [CyclePhase: Int], cycleLength: Int) -> (CyclePhase, Int) {
         let order: [CyclePhase] = [.menstrual, .follicular, .ovulation, .luteal]
         var cumulative = 0
 
@@ -81,6 +88,8 @@ enum CycleCalculator {
             cumulative += duration
         }
 
-        return (.luteal, 1)
+        // Past cycleLength: extend the luteal phase
+        let lutealStart = cycleLength - (phases[.luteal] ?? 0)
+        return (.luteal, dayInCycle - lutealStart)
     }
 }

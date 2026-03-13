@@ -76,7 +76,7 @@ struct NourishView: View {
 
             if let selected = viewModel.selectedProtocol {
                 Text(selected.focusDescription)
-                    .font(.system(.caption, design: .serif))
+                    .font(.system(.caption, design: AppTheme.fontFamilySerif))
                     .foregroundStyle(selected.color.opacity(0.85))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -108,13 +108,13 @@ struct NourishView: View {
                 }
             }
         } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: AppTheme.Spacing.xs) {
                 Image(systemName: nutritionProtocol.icon)
                     .font(.title2)
                     .foregroundStyle(isSelected ? .white : nutritionProtocol.color)
 
                 Text(nutritionProtocol.displayName)
-                    .font(.system(.caption2, design: .rounded, weight: .medium))
+                    .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)

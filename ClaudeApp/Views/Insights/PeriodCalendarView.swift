@@ -71,7 +71,7 @@ struct PeriodCalendarView: View {
                 HStack(spacing: AppTheme.Spacing.sm) {
                     Image(systemName: "exclamationmark.circle.fill")
                     Text("Period is \(delayDays) day\(delayDays == 1 ? "" : "s") late")
-                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                 }
                 .foregroundStyle(Color.appRose)
                 .frame(maxWidth: .infinity)
@@ -92,7 +92,7 @@ struct PeriodCalendarView: View {
                 Spacer()
 
                 Text(monthYearString)
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .semibold))
                     .foregroundStyle(Color.appSoftBrown)
 
                 Spacer()
@@ -109,7 +109,7 @@ struct PeriodCalendarView: View {
             LazyVGrid(columns: columns, spacing: 0) {
                 ForEach(weekdaySymbols, id: \.self) { symbol in
                     Text(symbol)
-                        .font(.system(.caption2, design: .rounded, weight: .medium))
+                        .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                         .foregroundStyle(Color.appSoftBrown.opacity(0.6))
                         .frame(height: 24)
                 }
@@ -165,16 +165,16 @@ struct PeriodCalendarView: View {
             switch mode {
             case .remove:
                 Text("Remove period containing \(fmt.string(from: date))")
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown)
             case .extend:
                 Text("Extend period through \(fmt.string(from: date))")
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown)
             case .add:
                 let endDate = calendar.date(byAdding: .day, value: periodLength - 1, to: date)!
                 Text("\(fmt.string(from: date)) – \(fmt.string(from: endDate)) (\(periodLength) days)")
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown)
             }
 
@@ -233,7 +233,7 @@ struct PeriodCalendarView: View {
             HStack(spacing: AppTheme.Spacing.sm) {
                 Image(systemName: isManual ? "minus.circle.fill" : "plus.circle.fill")
                 Text(isManual ? "Remove Ovulation" : "Mark Ovulation")
-                    .font(.system(.body, design: .rounded, weight: .medium))
+                    .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
@@ -300,7 +300,7 @@ struct PeriodCalendarView: View {
 
             VStack(spacing: 1) {
                 Text("\(dayNumber)")
-                    .font(.system(.caption, design: .rounded, weight: (isToday || isSelected) ? .bold : .regular))
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: (isToday || isSelected) ? .bold : .regular))
                     .foregroundStyle(dayTextColor(status: status, isToday: isToday, isSelected: isSelected))
 
                 if let tagsForDate, !tagsForDate(date).isEmpty {
@@ -330,7 +330,7 @@ struct PeriodCalendarView: View {
 
     @ViewBuilder
     private func legendDot(color: Color, label: String, dashed: Bool = false, dashColor: Color = .clear, bordered: Bool = false, borderColor: Color = .clear) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: AppTheme.Spacing.xs) {
             ZStack {
                 Circle()
                     .fill(color)
@@ -346,7 +346,7 @@ struct PeriodCalendarView: View {
             .frame(width: 10, height: 10)
 
             Text(label)
-                .font(.system(.caption2, design: .rounded))
+                .font(.system(.caption2, design: AppTheme.fontFamily))
                 .foregroundStyle(Color.appSoftBrown.opacity(0.7))
         }
     }

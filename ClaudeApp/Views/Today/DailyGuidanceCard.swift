@@ -26,7 +26,7 @@ struct DailyGuidanceCard: View {
                     .foregroundStyle(phase.accentColor.opacity(0.7))
                     .font(.caption)
                 Text(decisionTiming)
-                    .font(.system(.caption, design: .rounded))
+                    .font(.system(.caption, design: AppTheme.fontFamily))
                     .foregroundStyle(Color.appSoftBrown.opacity(0.7))
             }
         }

@@ -82,7 +82,7 @@ struct LunarMirrorView: View {
                     .warmHeadline()
                 Spacer()
                 Text("Day \(Int(dayInCycle)) of \(Int(cycleLength))")
-                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown.opacity(0.6))
             }
 
@@ -102,7 +102,7 @@ struct LunarMirrorView: View {
 
             HStack {
                 Text("Cycle Length")
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown)
 
                 Spacer()
@@ -121,7 +121,7 @@ struct LunarMirrorView: View {
                     .disabled(cycleLength <= 21)
 
                     Text("\(Int(cycleLength))")
-                        .font(.system(.body, design: .rounded, weight: .semibold))
+                        .font(.system(.body, design: AppTheme.fontFamily, weight: .semibold))
                         .foregroundStyle(Color.appSoftBrown)
                         .frame(minWidth: 30)
 

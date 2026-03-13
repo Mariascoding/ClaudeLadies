@@ -35,11 +35,11 @@ struct DeviceLinkingCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(source.displayName)
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown)
 
                 Text(statusText(for: state))
-                    .font(.system(.caption2, design: .rounded))
+                    .font(.system(.caption2, design: AppTheme.fontFamily))
                     .foregroundStyle(statusColor(for: state))
             }
 
@@ -60,7 +60,7 @@ struct DeviceLinkingCard: View {
                 }
             } label: {
                 Text("Connect")
-                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(.white)
                     .padding(.horizontal, AppTheme.Spacing.sm)
                     .padding(.vertical, AppTheme.Spacing.xs)
@@ -77,7 +77,7 @@ struct DeviceLinkingCard: View {
                 healthManager.disconnect(source: source)
             } label: {
                 Text("Disconnect")
-                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown.opacity(0.5))
                     .padding(.horizontal, AppTheme.Spacing.sm)
                     .padding(.vertical, AppTheme.Spacing.xs)

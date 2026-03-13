@@ -9,8 +9,10 @@ struct ClaudeAppApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .overlay { DevConsoleDrawer() }
                 .environment(authService)
                 .environment(healthManager)
+                .dynamicTypeSize(ThemeOverrides.shared.activeTheme?.typeSize ?? .medium)
                 .task { await authService.initialize() }
         }
         .modelContainer(for: [CycleLog.self, SymptomEntry.self, UserProfile.self, NutritionLog.self, HealthMetricLog.self])

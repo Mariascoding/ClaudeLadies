@@ -67,13 +67,13 @@ struct DailyTimelineView: View {
         VStack(spacing: AppTheme.Spacing.sm) {
             HStack {
                 Text("Daily Progress")
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown)
 
                 Spacer()
 
                 Text("\(completedItems) of \(totalItems)")
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(phase.accentColor)
             }
 
@@ -109,7 +109,7 @@ struct DailyTimelineView: View {
                         .frame(width: 24)
 
                     Text("Avoid & Why This Works")
-                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                         .foregroundStyle(Color.appSoftBrown)
 
                     Spacer()
@@ -125,7 +125,7 @@ struct DailyTimelineView: View {
                     // Avoid list
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Avoid")
-                            .font(.system(.caption, design: .rounded, weight: .medium))
+                            .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                             .foregroundStyle(Color.appSoftBrown.opacity(0.5))
 
                         ForEach(plan.avoid, id: \.self) { item in
@@ -145,7 +145,7 @@ struct DailyTimelineView: View {
                     // Rationale
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Why This Works")
-                            .font(.system(.caption, design: .rounded, weight: .medium))
+                            .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                             .foregroundStyle(Color.appSoftBrown.opacity(0.5))
 
                         Text(plan.rationale)

@@ -51,7 +51,7 @@ struct NervousSystemGuidanceView: View {
                         .frame(width: 24)
 
                     Text(section.rawValue)
-                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                         .foregroundStyle(Color.appSoftBrown)
 
                     Spacer()

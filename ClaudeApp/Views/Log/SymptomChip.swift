@@ -7,11 +7,11 @@ struct SymptomChip: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 4) {
+            HStack(spacing: AppTheme.Spacing.xs) {
                 Text(symptom.emoji)
                     .font(.caption)
                 Text(symptom.displayName)
-                    .font(.system(.caption, design: .rounded, weight: isSelected ? .semibold : .regular))
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: isSelected ? .semibold : .regular))
             }
             .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
             .padding(.horizontal, AppTheme.Spacing.sm + 2)

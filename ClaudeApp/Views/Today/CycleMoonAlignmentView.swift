@@ -27,7 +27,7 @@ struct CycleMoonAlignmentView: View {
                     .rotationEffect(.degrees(-90))
 
                 Text("\(alignmentPercentage)%")
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .semibold))
                     .foregroundStyle(phase.accentColor)
             }
             .frame(width: 50, height: 50)
@@ -39,7 +39,7 @@ struct CycleMoonAlignmentView: View {
 
                 Text(archetype.description)
                     .guidanceText()
-                    .font(.system(.caption, design: .serif))
+                    .font(.system(.caption, design: AppTheme.fontFamilySerif))
             }
 
             Spacer(minLength: 0)

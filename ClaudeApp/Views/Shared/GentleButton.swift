@@ -14,7 +14,7 @@ struct GentleButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(.body, design: .rounded, weight: .medium))
+                .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
                 .foregroundStyle(.white)
                 .padding(.horizontal, AppTheme.Spacing.lg)
                 .padding(.vertical, AppTheme.Spacing.md)
@@ -38,7 +38,7 @@ struct GentleOutlineButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(.body, design: .rounded, weight: .medium))
+                .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
                 .foregroundStyle(color)
                 .padding(.horizontal, AppTheme.Spacing.lg)
                 .padding(.vertical, AppTheme.Spacing.md)

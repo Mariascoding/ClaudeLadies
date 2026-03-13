@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(AuthenticationService.self) private var authService
     @Query private var profiles: [UserProfile]
     @AppStorage("appColorTheme") private var selectedTheme = "classic"
+    @AppStorage("devConsoleEnabled") private var devConsoleEnabled = false
     @State private var showSignIn = false
 
     private var profile: UserProfile? { profiles.first }
@@ -37,6 +38,9 @@ struct SettingsView: View {
 
                     // About
                     aboutCard
+
+                    // Developer
+                    developerCard
 
                     Spacer(minLength: AppTheme.Spacing.xxl)
                 }
@@ -87,12 +91,12 @@ struct SettingsView: View {
                             try? modelContext.save()
                         }
                     } label: {
-                        VStack(spacing: 4) {
+                        VStack(spacing: AppTheme.Spacing.xs) {
                             Image(systemName: goal.icon)
                                 .font(.body)
                                 .foregroundStyle(isSelected ? .white : goal.color)
                             Text(goal.displayName)
-                                .font(.system(.caption2, design: .rounded, weight: .medium))
+                                .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                                 .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
@@ -131,12 +135,12 @@ struct SettingsView: View {
                             try? modelContext.save()
                         }
                     } label: {
-                        VStack(spacing: 6) {
+                        VStack(spacing: AppTheme.Spacing.xs) {
                             Image(systemName: nutritionProtocol.icon)
                                 .font(.title3)
                                 .foregroundStyle(isSelected ? .white : nutritionProtocol.color)
                             Text(nutritionProtocol.displayName)
-                                .font(.system(.caption2, design: .rounded, weight: .medium))
+                                .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                                 .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
@@ -173,7 +177,7 @@ struct SettingsView: View {
                         selectedTheme = "auto"
                     }
                 } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: AppTheme.Spacing.xs) {
                         Circle()
                             .fill(
                                 AngularGradient(
@@ -192,9 +196,9 @@ struct SettingsView: View {
                                 Circle()
                                     .strokeBorder(Color.appSoftBrown, lineWidth: autoSelected ? 2.5 : 0)
                             )
-                            .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                            .shadow(color: AppTheme.softShadow, radius: AppTheme.softShadowRadius, y: AppTheme.softShadowY)
                         Text("Auto")
-                            .font(.system(.caption2, design: .rounded, weight: .medium))
+                            .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                             .foregroundStyle(autoSelected ? Color.appSoftBrown : Color.appSoftBrown.opacity(0.5))
                     }
                     .frame(maxWidth: .infinity)
@@ -208,7 +212,7 @@ struct SettingsView: View {
                             selectedTheme = theme.rawValue
                         }
                     } label: {
-                        VStack(spacing: 6) {
+                        VStack(spacing: AppTheme.Spacing.xs) {
                             Circle()
                                 .fill(theme.previewColor)
                                 .frame(width: 40, height: 40)
@@ -216,9 +220,9 @@ struct SettingsView: View {
                                     Circle()
                                         .strokeBorder(Color.appSoftBrown, lineWidth: isSelected ? 2.5 : 0)
                                 )
-                                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                                .shadow(color: AppTheme.softShadow, radius: AppTheme.softShadowRadius, y: AppTheme.softShadowY)
                             Text(theme.displayName)
-                                .font(.system(.caption2, design: .rounded, weight: .medium))
+                                .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                                 .foregroundStyle(isSelected ? Color.appSoftBrown : Color.appSoftBrown.opacity(0.5))
                         }
                         .frame(maxWidth: .infinity)
@@ -249,7 +253,7 @@ struct SettingsView: View {
                     Task { await authService.signOut() }
                 } label: {
                     Text("Sign Out")
-                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                         .foregroundStyle(Color.appSoftBrown.opacity(0.5))
                 }
             } else {
@@ -263,11 +267,31 @@ struct SettingsView: View {
                         Image(systemName: "person.crop.circle")
                             .font(.caption)
                         Text("Sign In")
-                            .font(.system(.caption, design: .rounded, weight: .medium))
+                            .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                     }
                     .foregroundStyle(Color.appRose)
                 }
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .warmCard()
+        .padding(.horizontal, AppTheme.Spacing.md)
+    }
+
+    private var developerCard: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            Toggle(isOn: $devConsoleEnabled) {
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    Image(systemName: "wrench.and.screwdriver.fill")
+                        .foregroundStyle(Color.appTerracotta)
+                    Text("Developer Console")
+                        .warmHeadline()
+                }
+            }
+            .tint(Color.appTerracotta)
+
+            Text("Live theme editor for colors, typography, spacing, radius, and shadows.")
+                .captionStyle()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .warmCard()

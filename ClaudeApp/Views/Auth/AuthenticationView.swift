@@ -46,7 +46,7 @@ struct AuthenticationView: View {
 
                     if let error = authService.errorMessage {
                         Text(error)
-                            .font(.system(.caption, design: .rounded))
+                            .font(.system(.caption, design: AppTheme.fontFamily))
                             .foregroundStyle(.red)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, AppTheme.Spacing.lg)
@@ -81,7 +81,7 @@ struct AuthenticationView: View {
                 .foregroundStyle(Color.appRose)
 
             Text("Back Up Your Data")
-                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .font(.system(.largeTitle, design: AppTheme.fontFamily, weight: .bold))
                 .foregroundStyle(Color.appSoftBrown)
 
             Text("Sign in to keep your cycle data safe. If you ever lose your device, your history is protected.")
@@ -168,7 +168,7 @@ struct AuthenticationView: View {
             }
         } label: {
             Text(isSignUp ? "Already have an account? **Sign in**" : "Don't have an account? **Sign up**")
-                .font(.system(.footnote, design: .rounded))
+                .font(.system(.footnote, design: AppTheme.fontFamily))
                 .foregroundStyle(Color.appSoftBrown.opacity(0.7))
         }
     }

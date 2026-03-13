@@ -26,13 +26,13 @@ struct NervousSystemSelector: View {
                 onSelect(state)
             }
         } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: AppTheme.Spacing.xs) {
                 Image(systemName: state.icon)
                     .font(.title2)
                     .foregroundStyle(isSelected ? .white : state.color)
 
                 Text(state.displayName)
-                    .font(.system(.caption2, design: .rounded, weight: .medium))
+                    .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
             }
             .frame(maxWidth: .infinity)

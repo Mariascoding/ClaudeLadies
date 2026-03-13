@@ -33,7 +33,7 @@ struct TagAnalysisView: View {
     private func tagRow(_ result: TagPhaseResult) -> some View {
         HStack {
             Text(result.tag.capitalized)
-                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                 .foregroundStyle(Color.appSoftBrown)
 
             Spacer()
@@ -45,7 +45,7 @@ struct TagAnalysisView: View {
             correlationBadge(result.correlation)
 
             Text("\(result.totalCount)x")
-                .font(.system(.caption, design: .rounded))
+                .font(.system(.caption, design: AppTheme.fontFamily))
                 .foregroundStyle(Color.appSoftBrown.opacity(0.5))
         }
         .padding(.vertical, AppTheme.Spacing.sm)
@@ -55,10 +55,10 @@ struct TagAnalysisView: View {
     private func correlationBadge(_ correlation: TagCorrelation) -> some View {
         let (label, color) = badgeInfo(correlation)
         Text(label)
-            .font(.system(.caption2, design: .rounded, weight: .medium))
+            .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
             .foregroundStyle(color)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(.horizontal, AppTheme.Spacing.xs)
+            .padding(.vertical, AppTheme.Spacing.xxs)
             .background(color.opacity(0.12))
             .clipShape(Capsule())
     }

@@ -36,7 +36,7 @@ struct TagInputView: View {
             // Input row
             HStack(spacing: AppTheme.Spacing.sm) {
                 TextField("Add a tag...", text: $inputText)
-                    .font(.system(.body, design: .rounded))
+                    .font(.system(.body, design: AppTheme.fontFamily))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .focused($isFocused)
@@ -65,7 +65,7 @@ struct TagInputView: View {
                             }
                         } label: {
                             Text(suggestion.capitalized)
-                                .font(.system(.caption, design: .rounded))
+                                .font(.system(.caption, design: AppTheme.fontFamily))
                                 .foregroundStyle(Color.appTerracotta)
                                 .padding(.horizontal, AppTheme.Spacing.sm)
                                 .padding(.vertical, AppTheme.Spacing.xs)
@@ -93,9 +93,9 @@ struct TagChip: View {
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: AppTheme.Spacing.xs) {
             Text(tag.capitalized)
-                .font(.system(.caption, design: .rounded))
+                .font(.system(.caption, design: AppTheme.fontFamily))
 
             Button {
                 onRemove()

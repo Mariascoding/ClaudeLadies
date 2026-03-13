@@ -72,7 +72,7 @@ struct OnboardingView: View {
                 .foregroundStyle(Color.appRose)
 
             Text("Welcome")
-                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .font(.system(.largeTitle, design: AppTheme.fontFamily, weight: .bold))
                 .foregroundStyle(Color.appSoftBrown)
 
             Text("Your body has its own rhythm.\nLet's learn to listen together.")
@@ -124,7 +124,7 @@ struct OnboardingView: View {
                     .foregroundStyle(isSelected ? .white : goal.color)
 
                 Text(goal.displayName)
-                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)

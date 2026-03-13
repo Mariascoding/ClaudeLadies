@@ -28,9 +28,9 @@ struct BreathingAnimationView: View {
                     .frame(width: isExpanded ? 140 : 60, height: isExpanded ? 140 : 60)
                     .animation(.easeInOut(duration: currentDuration), value: isExpanded)
 
-                VStack(spacing: 4) {
+                VStack(spacing: AppTheme.Spacing.xs) {
                     Text(breathPhase.rawValue)
-                        .font(.system(.body, design: .rounded, weight: .medium))
+                        .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
                         .foregroundStyle(Color.appSoftBrown)
 
                     if isActive {

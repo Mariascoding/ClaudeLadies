@@ -11,11 +11,11 @@ struct DoNothingWellBanner: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Do Nothing Well")
-                    .font(.system(.headline, design: .rounded, weight: .semibold))
+                    .font(.system(.headline, design: AppTheme.fontFamily, weight: .semibold))
                     .foregroundStyle(Color.appSoftBrown)
 
                 Text("Today is for rest, not results. Give yourself permission to simply be.")
-                    .font(.system(.caption, design: .serif))
+                    .font(.system(.caption, design: AppTheme.fontFamilySerif))
                     .foregroundStyle(Color.appSoftBrown.opacity(0.7))
             }
 

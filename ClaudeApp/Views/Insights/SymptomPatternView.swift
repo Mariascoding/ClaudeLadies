@@ -27,13 +27,13 @@ struct SymptomPatternView: View {
                                 .font(.caption)
 
                             Text(item.symptom.displayName)
-                                .font(.system(.caption, design: .rounded))
+                                .font(.system(.caption, design: AppTheme.fontFamily))
                                 .foregroundStyle(Color.appSoftBrown)
                                 .frame(width: 100, alignment: .leading)
 
                             GeometryReader { geo in
                                 let fraction = CGFloat(item.count) / CGFloat(max(1, maxCount))
-                                RoundedRectangle(cornerRadius: 4)
+                                RoundedRectangle(cornerRadius: AppTheme.Radius.sm)
                                     .fill(Color.appRose.opacity(0.3))
                                     .frame(width: geo.size.width * fraction)
                             }

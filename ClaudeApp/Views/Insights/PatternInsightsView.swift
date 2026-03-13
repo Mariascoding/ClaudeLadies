@@ -43,11 +43,11 @@ struct PatternInsightsView: View {
 
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 4)
+                        RoundedRectangle(cornerRadius: AppTheme.Radius.sm)
                             .fill(Color.appSoftBrown.opacity(0.1))
                             .frame(height: 8)
 
-                        RoundedRectangle(cornerRadius: 4)
+                        RoundedRectangle(cornerRadius: AppTheme.Radius.sm)
                             .fill(Color.appTerracotta.opacity(0.6))
                             .frame(width: geo.size.width * min(progress, 1.0), height: 8)
                     }
@@ -106,7 +106,7 @@ struct PatternInsightsView: View {
                         .frame(width: 24)
 
                     Text(result.cluster.displayName)
-                        .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                         .foregroundStyle(Color.appSoftBrown)
                         .lineLimit(1)
 
@@ -116,7 +116,7 @@ struct PatternInsightsView: View {
 
                     if let peakDay = result.peakCycleDay {
                         Text("peaks day \(peakDay)")
-                            .font(.system(.caption2, design: .rounded))
+                            .font(.system(.caption2, design: AppTheme.fontFamily))
                             .foregroundStyle(Color.appSoftBrown.opacity(0.5))
                     }
 
@@ -144,7 +144,7 @@ struct PatternInsightsView: View {
                         HStack(spacing: AppTheme.Spacing.xs) {
                             PhaseIcon(phase: phase, size: 14)
                             Text("Peaks in \(phase.displayName) phase")
-                                .font(.system(.caption, design: .rounded))
+                                .font(.system(.caption, design: AppTheme.fontFamily))
                                 .foregroundStyle(phase.accentColor)
                         }
                         .padding(.horizontal, AppTheme.Spacing.sm)
@@ -159,7 +159,7 @@ struct PatternInsightsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.bottom, AppTheme.Spacing.sm)
-                .padding(.leading, 32)
+                .padding(.leading, AppTheme.Spacing.xl)
                 .transition(.opacity.combined(with: .identity))
             }
 
@@ -171,13 +171,13 @@ struct PatternInsightsView: View {
     // MARK: - Symptom Chip
 
     private func symptomChip(freq: SymptomFrequencyInfo) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: AppTheme.Spacing.xs) {
             Text(freq.symptom.emoji)
                 .font(.caption2)
             Text(freq.symptom.displayName)
-                .font(.system(.caption2, design: .rounded))
+                .font(.system(.caption2, design: AppTheme.fontFamily))
             Text("(\(freq.count))")
-                .font(.system(.caption2, design: .rounded, weight: .medium))
+                .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
         }
         .foregroundStyle(Color.appSoftBrown)
         .padding(.horizontal, AppTheme.Spacing.sm)
@@ -190,10 +190,10 @@ struct PatternInsightsView: View {
 
     private func strengthBadge(_ strength: ClusterStrength) -> some View {
         Text(strength.displayName)
-            .font(.system(.caption2, design: .rounded, weight: .medium))
+            .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
             .foregroundStyle(strengthColor(strength))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(.horizontal, AppTheme.Spacing.xs)
+            .padding(.vertical, AppTheme.Spacing.xxs)
             .background(strengthColor(strength).opacity(0.12))
             .clipShape(Capsule())
     }
@@ -223,22 +223,22 @@ struct PatternInsightsView: View {
                     Text("Recommended Protocol")
                         .captionStyle()
                     Text(recommendation.recommended.displayName)
-                        .font(.system(.headline, design: .rounded, weight: .semibold))
+                        .font(.system(.headline, design: AppTheme.fontFamily, weight: .semibold))
                         .foregroundStyle(recommendation.recommended.color)
                 }
 
                 Spacer()
 
                 // Confidence badge
-                HStack(spacing: 4) {
+                HStack(spacing: AppTheme.Spacing.xs) {
                     Image(systemName: recommendation.confidence.icon)
                         .font(.caption2)
                     Text(recommendation.confidence.displayName)
-                        .font(.system(.caption2, design: .rounded))
+                        .font(.system(.caption2, design: AppTheme.fontFamily))
                 }
                 .foregroundStyle(Color.appSoftBrown.opacity(0.6))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .padding(.horizontal, AppTheme.Spacing.xs)
+                .padding(.vertical, AppTheme.Spacing.xxs)
                 .background(Color.appSoftBrown.opacity(0.06))
                 .clipShape(Capsule())
             }
@@ -254,7 +254,7 @@ struct PatternInsightsView: View {
                         .font(.caption)
                         .foregroundStyle(altProtocol.color)
                     Text(altReason)
-                        .font(.system(.caption, design: .rounded))
+                        .font(.system(.caption, design: AppTheme.fontFamily))
                         .foregroundStyle(Color.appSoftBrown.opacity(0.7))
                 }
             }

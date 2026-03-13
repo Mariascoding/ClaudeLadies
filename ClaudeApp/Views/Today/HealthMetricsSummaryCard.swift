@@ -68,7 +68,7 @@ struct HealthMetricsSummaryCard: View {
             // Phase-contextual insight
             if let insight = phaseInsight {
                 Text(insight)
-                    .font(.system(.caption, design: .rounded))
+                    .font(.system(.caption, design: AppTheme.fontFamily))
                     .foregroundStyle(Color.appSoftBrown.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, AppTheme.Spacing.xs)
@@ -78,24 +78,24 @@ struct HealthMetricsSummaryCard: View {
     }
 
     private func metricTile(icon: String, label: String, value: String, unit: String, color: Color) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: AppTheme.Spacing.xs) {
             Image(systemName: icon)
                 .font(.body)
                 .foregroundStyle(color)
 
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(value)
-                    .font(.system(.title3, design: .rounded, weight: .semibold))
+                    .font(.system(.title3, design: AppTheme.fontFamily, weight: .semibold))
                     .foregroundStyle(Color.appSoftBrown)
                 if !unit.isEmpty {
                     Text(unit)
-                        .font(.system(.caption2, design: .rounded))
+                        .font(.system(.caption2, design: AppTheme.fontFamily))
                         .foregroundStyle(Color.appSoftBrown.opacity(0.6))
                 }
             }
 
             Text(label)
-                .font(.system(.caption2, design: .rounded, weight: .medium))
+                .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                 .foregroundStyle(Color.appSoftBrown.opacity(0.6))
         }
         .frame(maxWidth: .infinity)

@@ -19,7 +19,7 @@ struct DayLogSummary: View {
                 FlowLayout(spacing: AppTheme.Spacing.xs) {
                     ForEach(Array(symptoms).sorted(by: { $0.displayName < $1.displayName })) { symptom in
                         Text("\(symptom.emoji) \(symptom.displayName)")
-                            .font(.system(.caption, design: .rounded))
+                            .font(.system(.caption, design: AppTheme.fontFamily))
                             .foregroundStyle(Color.appSoftBrown)
                             .padding(.horizontal, AppTheme.Spacing.sm)
                             .padding(.vertical, AppTheme.Spacing.xs)
@@ -29,7 +29,7 @@ struct DayLogSummary: View {
 
                     ForEach(tags, id: \.self) { tag in
                         Text(tag.capitalized)
-                            .font(.system(.caption, design: .rounded))
+                            .font(.system(.caption, design: AppTheme.fontFamily))
                             .foregroundStyle(Color.appTerracotta)
                             .padding(.horizontal, AppTheme.Spacing.sm)
                             .padding(.vertical, AppTheme.Spacing.xs)

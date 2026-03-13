@@ -135,7 +135,13 @@ final class InsightsViewModel {
         guard let modelContext else { return }
         let calendar = Calendar.current
         let startDate = calendar.startOfDay(for: date)
-        let endDate = calendar.date(byAdding: .day, value: periodLength - 1, to: startDate)!
+        let today = calendar.startOfDay(for: Date())
+
+        // If the period would still be ongoing, leave endDate nil (active period).
+        // Solid circles only appear for days that have actually passed.
+        // If it's a historical entry that's fully in the past, set the end date.
+        let projectedEnd = calendar.date(byAdding: .day, value: periodLength - 1, to: startDate)!
+        let endDate: Date? = projectedEnd <= today ? projectedEnd : nil
 
         let log = CycleLog(startDate: startDate, endDate: endDate)
         modelContext.insert(log)
@@ -256,14 +262,24 @@ final class InsightsViewModel {
             return
         }
 
-        let expected = calendar.date(byAdding: .day, value: cycleLength, to: calendar.startOfDay(for: lastStart))!
-        expectedNextPeriodStart = expected
-
-        // If there's an active period (endDate == nil), no delay
-        if cycleLogs.contains(where: { $0.isActive }) {
+        // When there's an active (ongoing) period, base the prediction on the
+        // previous completed cycle so the dotted circles remain visible.
+        let hasActivePeriod = cycleLogs.contains(where: { $0.isActive })
+        if hasActivePeriod {
+            let completedLogs = cycleLogs.filter { $0.endDate != nil }
+                .sorted { $0.startDate < $1.startDate }
+            if let previousStart = completedLogs.last?.startDate {
+                let expected = calendar.date(byAdding: .day, value: cycleLength, to: calendar.startOfDay(for: previousStart))!
+                expectedNextPeriodStart = expected
+            } else {
+                expectedNextPeriodStart = nil
+            }
             delayDays = 0
             return
         }
+
+        let expected = calendar.date(byAdding: .day, value: cycleLength, to: calendar.startOfDay(for: lastStart))!
+        expectedNextPeriodStart = expected
 
         // If a CycleLog starts on or after the expected date, no delay
         let expectedDay = calendar.startOfDay(for: expected)

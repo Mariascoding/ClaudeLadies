@@ -25,7 +25,7 @@ struct CycleLengthSettingView: View {
                     }
 
                     Text("\(cycleLength) days")
-                        .font(.system(.title, design: .rounded, weight: .semibold))
+                        .font(.system(.title, design: AppTheme.fontFamily, weight: .semibold))
                         .foregroundStyle(Color.appSoftBrown)
                         .frame(width: 120)
 
@@ -61,7 +61,7 @@ struct CycleLengthSettingView: View {
                     }
 
                     Text("\(periodLength) days")
-                        .font(.system(.title, design: .rounded, weight: .semibold))
+                        .font(.system(.title, design: AppTheme.fontFamily, weight: .semibold))
                         .foregroundStyle(Color.appSoftBrown)
                         .frame(width: 120)
 

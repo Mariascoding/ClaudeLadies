@@ -82,7 +82,7 @@ struct NourishNotificationCard: View {
                     .frame(width: 24)
 
                 Text(name)
-                    .font(.system(.body, design: .rounded, weight: .medium))
+                    .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
                     .foregroundStyle(Color.appSoftBrown)
             }
         }

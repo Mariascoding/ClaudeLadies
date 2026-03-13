@@ -96,12 +96,6 @@ struct LunarMirrorCard: View {
         isNightMode ? 0.7 : 0.55
     }
 
-    private var alignmentTextOpacity: Double {
-        let fadeEnd: CGFloat = 60
-        let clamped = min(max(scrollOffset, 0), fadeEnd)
-        return Double(1.0 - clamped / fadeEnd)
-    }
-
     private var scrimColor: Color {
         isNightMode ? .black.opacity(0.65) : .white.opacity(0.7)
     }
@@ -164,10 +158,8 @@ struct LunarMirrorCard: View {
             }
             .frame(height: 240)
 
-            alignmentOverlay
-                .opacity(alignmentTextOpacity)
-                .padding(.top, AppTheme.Spacing.xs)
-                .padding(.bottom, AppTheme.Spacing.md)
+            Color.clear
+                .frame(height: AppTheme.Spacing.md)
         }
         .animation(.easeInOut(duration: 0.5), value: colorScheme)
         .contentShape(Rectangle())
@@ -195,40 +187,6 @@ struct LunarMirrorCard: View {
 
     // MARK: - Alignment Overlay
 
-    private var profileAccentColor: Color {
-        isNightMode ? currentProfile.color : currentProfile.color.opacity(0.8)
-    }
-
-    private var alignmentOverlay: some View {
-        VStack(spacing: AppTheme.Spacing.xs) {
-            Text("\(cycleStateVerb) with the \(currentLunarPhase.displayName)")
-                .font(.system(.caption, design: .serif))
-                .foregroundStyle(textPrimary.opacity(textSecondary))
-
-            HStack(spacing: AppTheme.Spacing.xs) {
-                Text("\(alignmentPercent)%")
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                    .foregroundStyle(textPrimary.opacity(0.85))
-                Text("\(currentProfile.name) Woman")
-                    .font(.system(.subheadline, design: .serif, weight: .medium))
-                    .foregroundStyle(textPrimary.opacity(0.9))
-            }
-
-            HStack(spacing: AppTheme.Spacing.xs) {
-                ForEach(Array(currentProfile.traits.prefix(3).enumerated()), id: \.offset) { _, trait in
-                    Text(trait)
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(textPrimary.opacity(0.8))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(textPrimary.opacity(isNightMode ? 0.15 : 0.1))
-                        .clipShape(Capsule())
-                }
-            }
-        }
-        .opacity(showingWisdom ? 0.15 : 1)
-    }
-
     // MARK: - Wisdom Overlay
 
     private var wisdomOverlay: some View {
@@ -239,16 +197,46 @@ struct LunarMirrorCard: View {
                 VStack(spacing: AppTheme.Spacing.xs) {
                     HStack(spacing: AppTheme.Spacing.xs) {
                         Text(wisdom.lunarPhase.displayName)
-                            .font(.system(.headline, design: .serif, weight: .semibold))
+                            .font(.system(.headline, design: AppTheme.fontFamilySerif, weight: .semibold))
                             .foregroundStyle(textPrimary)
                         Text("\(Int(MoonUtils.illumination(for: moonState.moonDay) * 100))%")
-                            .font(.system(.caption, design: .rounded, weight: .medium))
+                            .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
                             .foregroundStyle(textPrimary.opacity(0.45))
                     }
                     Text(wisdom.energyKeyword.uppercased())
-                        .font(.system(.caption2, design: .rounded, weight: .medium))
+                        .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
                         .foregroundStyle(textPrimary.opacity(0.5))
                         .tracking(1.2)
+                }
+                .opacity(showWisdomTitle ? 1 : 0)
+                .offset(y: showWisdomTitle ? 0 : 40)
+
+                // Cycle + archetype alignment
+                VStack(spacing: AppTheme.Spacing.xs) {
+                    Text("\(cycleStateVerb) with the \(currentLunarPhase.displayName)")
+                        .font(.system(.caption, design: AppTheme.fontFamilySerif))
+                        .foregroundStyle(textPrimary.opacity(textSecondary))
+
+                    HStack(spacing: AppTheme.Spacing.xs) {
+                        Text("\(alignmentPercent)%")
+                            .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .bold))
+                            .foregroundStyle(textPrimary.opacity(0.85))
+                        Text("\(currentProfile.name) Woman")
+                            .font(.system(.subheadline, design: AppTheme.fontFamilySerif, weight: .medium))
+                            .foregroundStyle(textPrimary.opacity(0.9))
+                    }
+
+                    HStack(spacing: AppTheme.Spacing.xs) {
+                        ForEach(Array(currentProfile.traits.prefix(3).enumerated()), id: \.offset) { _, trait in
+                            Text(trait)
+                                .font(.system(size: 10, weight: .medium, design: AppTheme.fontFamily))
+                                .foregroundStyle(textPrimary.opacity(0.8))
+                                .padding(.horizontal, AppTheme.Spacing.xs)
+                                .padding(.vertical, AppTheme.Spacing.xxs)
+                                .background(textPrimary.opacity(isNightMode ? 0.15 : 0.1))
+                                .clipShape(Capsule())
+                        }
+                    }
                 }
                 .opacity(showWisdomTitle ? 1 : 0)
                 .offset(y: showWisdomTitle ? 0 : 40)
@@ -256,22 +244,22 @@ struct LunarMirrorCard: View {
                 VStack(spacing: AppTheme.Spacing.sm) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("ADVISED")
-                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .font(.system(size: 9, weight: .semibold, design: AppTheme.fontFamily))
                             .foregroundStyle(textPrimary.opacity(0.4))
                             .tracking(1)
                         Text(wisdom.advised.map(\.description).joined(separator: "  \u{00B7}  "))
-                            .font(.system(.caption2, design: .serif))
+                            .font(.system(.caption2, design: AppTheme.fontFamilySerif))
                             .foregroundStyle(textPrimary.opacity(0.8))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("AVOID")
-                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .font(.system(size: 9, weight: .semibold, design: AppTheme.fontFamily))
                             .foregroundStyle(textPrimary.opacity(0.3))
                             .tracking(1)
                         Text(wisdom.avoid.map(\.description).joined(separator: "  \u{00B7}  "))
-                            .font(.system(.caption2, design: .serif))
+                            .font(.system(.caption2, design: AppTheme.fontFamilySerif))
                             .foregroundStyle(textPrimary.opacity(0.55))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
