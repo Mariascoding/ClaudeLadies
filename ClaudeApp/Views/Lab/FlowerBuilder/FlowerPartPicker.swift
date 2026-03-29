@@ -57,6 +57,5 @@ struct FlowerPartPicker<Option: Hashable & Identifiable & CaseIterable>: View wh
                 .foregroundStyle(Color.appSoftBrown.opacity(0.6))
         }
         .warmCard()
-        .padding(.horizontal, AppTheme.Spacing.md)
     }
 }

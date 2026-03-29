@@ -66,6 +66,15 @@ enum FlowerPart: String, CaseIterable, Identifiable {
         }
     }
 
+    var shortName: String {
+        switch self {
+        case .outerPetals: "Outer"
+        case .innerPetals: "Inner"
+        case .stamen: "Stamen"
+        case .center: "Center"
+        }
+    }
+
     var icon: String {
         switch self {
         case .outerPetals: "sun.max"
