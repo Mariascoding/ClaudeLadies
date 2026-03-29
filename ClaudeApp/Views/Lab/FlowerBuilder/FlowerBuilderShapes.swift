@@ -754,162 +754,50 @@ struct CrownStamenView: View {
 
 // MARK: - Center Views
 
-/// Smooth — radial gradient dome with highlight and subtle rim
+/// Smooth — Realistic dome of disc florets (daisy-like)
 struct SmoothCenterView: View {
     let radius: CGFloat
     let color: Color
 
-    var body: some View {
-        ZStack {
-            // Base disc
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [color, color.opacity(0.6)],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: radius
-                    )
-                )
-                .frame(width: radius * 2, height: radius * 2)
-
-            // Rim shadow
-            Circle()
-                .strokeBorder(color.opacity(0.3), lineWidth: 2)
-                .frame(width: radius * 2, height: radius * 2)
-
-            // Highlight — off-center dome shine
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Color.white.opacity(0.5), Color.white.opacity(0)],
-                        center: UnitPoint(x: 0.35, y: 0.35),
-                        startRadius: 0,
-                        endRadius: radius * 0.6
-                    )
-                )
-                .frame(width: radius * 1.4, height: radius * 1.4)
-
-            // Tiny textured dots for realism
-            ForEach(0..<8, id: \.self) { i in
-                let angle = CGFloat(i) * .pi / 4
-                let r = radius * 0.45
-                Circle()
-                    .fill(color.opacity(0.25))
-                    .frame(width: 2.5, height: 2.5)
-                    .offset(x: r * cos(angle), y: r * sin(angle))
+    // Disc florets in 3 concentric rings with organic offset
+    private var florets: [(x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double)] {
+        var result: [(CGFloat, CGFloat, CGFloat, Double)] = []
+        let rings: [(count: Int, radiusFraction: CGFloat, size: CGFloat, opacity: Double)] = [
+            (16, 0.82, 2.8, 0.45),  // outer ring — small, dark
+            (12, 0.55, 3.2, 0.55),  // middle ring
+            (10, 0.30, 3.6, 0.70),  // inner ring — larger, brighter
+        ]
+        for ring in rings {
+            for i in 0..<ring.count {
+                let baseAngle = CGFloat(i) * 2 * .pi / CGFloat(ring.count)
+                // Slight organic jitter using deterministic offset
+                let jitter = CGFloat(i * 7 % 5) * 0.06 - 0.12
+                let angle = baseAngle + jitter
+                let r = radius * ring.radiusFraction + CGFloat(i % 3) * 0.8
+                result.append((r * cos(angle), r * sin(angle), ring.size, ring.opacity))
             }
         }
+        return result
     }
-}
 
-/// Rings — 5 concentric rings with gradient fill and textured inner core
-struct RingsCenterView: View {
-    let radius: CGFloat
-    let color: Color
-
-    var body: some View {
-        ZStack {
-            // Outermost soft glow
-            Circle()
-                .fill(color.opacity(0.15))
-                .frame(width: radius * 2.3, height: radius * 2.3)
-
-            // Ring 1 — outer
-            Circle()
-                .stroke(color, lineWidth: 2)
-                .frame(width: radius * 2, height: radius * 2)
-
-            // Ring 2
-            Circle()
-                .stroke(color.opacity(0.7), lineWidth: 1.5)
-                .frame(width: radius * 1.55, height: radius * 1.55)
-
-            // Ring 3
-            Circle()
-                .stroke(color.opacity(0.55), lineWidth: 1.2)
-                .frame(width: radius * 1.15, height: radius * 1.15)
-
-            // Ring 4
-            Circle()
-                .stroke(color.opacity(0.4), lineWidth: 1)
-                .frame(width: radius * 0.8, height: radius * 0.8)
-
-            // Filled core with gradient
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [color.opacity(0.8), color.opacity(0.4)],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: radius * 0.3
-                    )
-                )
-                .frame(width: radius * 0.5, height: radius * 0.5)
-        }
-    }
-}
-
-/// Seed Spiral — dense Fibonacci golden-angle seeds with background disc
-struct SeedSpiralCenterView: View {
-    let radius: CGFloat
-    let color: Color
-
-    private var seeds: [(CGFloat, CGFloat, CGFloat, Double)] {
-        let count = 55
-        var result: [(CGFloat, CGFloat, CGFloat, Double)] = []
-        for i in 0..<count {
-            let t = CGFloat(i) / CGFloat(count)
-            let r = radius * 0.9 * sqrt(t)
-            let theta = CGFloat(i) * 2.399963
-            let size: CGFloat = 1.8 + t * 2.8
-            let opacity = 0.35 + Double(t) * 0.55
-            result.append((r * cos(theta), r * sin(theta), size, opacity))
+    // Pollen dust dots on the inner ring
+    private var pollenDots: [(x: CGFloat, y: CGFloat)] {
+        var result: [(CGFloat, CGFloat)] = []
+        for i in 0..<12 {
+            let angle = CGFloat(i) * 2 * .pi / 12 + CGFloat(i % 3) * 0.15
+            let r = radius * 0.22 + CGFloat(i % 4) * 1.2
+            result.append((r * cos(angle), r * sin(angle)))
         }
         return result
     }
 
     var body: some View {
         ZStack {
-            // Background disc
+            // Background dome disc — 3D radial gradient (dark rim → lighter center)
             Circle()
-                .fill(color.opacity(0.2))
-                .frame(width: radius * 2, height: radius * 2)
-
-            // Seeds
-            ForEach(0..<seeds.count, id: \.self) { i in
-                Ellipse()
-                    .fill(color.opacity(seeds[i].3))
-                    .frame(width: seeds[i].2, height: seeds[i].2 * 1.3)
-                    .rotationEffect(.degrees(Double(i) * 137.508))
-                    .offset(x: seeds[i].0, y: seeds[i].1)
-            }
-
-            // Center pip
-            Circle()
-                .fill(color)
-                .frame(width: 3.5, height: 3.5)
-        }
-    }
-}
-
-/// Gem — layered faceted hexagons with inner star and glow
-struct GemCenterView: View {
-    let radius: CGFloat
-    let color: Color
-
-    var body: some View {
-        ZStack {
-            // Soft glow behind
-            Circle()
-                .fill(color.opacity(0.12))
-                .frame(width: radius * 2.4, height: radius * 2.4)
-
-            // Outer hexagon filled
-            HexagonShape()
                 .fill(
                     RadialGradient(
-                        colors: [color.opacity(0.45), color.opacity(0.15)],
+                        colors: [color.opacity(0.85), color.opacity(0.5), color.opacity(0.3)],
                         center: .center,
                         startRadius: 0,
                         endRadius: radius
@@ -917,41 +805,400 @@ struct GemCenterView: View {
                 )
                 .frame(width: radius * 2, height: radius * 2)
 
-            // Outer hexagon stroke
-            HexagonShape()
-                .stroke(color, lineWidth: 2)
+            // Rim shadow for depth
+            Circle()
+                .strokeBorder(
+                    RadialGradient(
+                        colors: [color.opacity(0.1), color.opacity(0.5)],
+                        center: .center,
+                        startRadius: radius * 0.7,
+                        endRadius: radius
+                    ),
+                    lineWidth: 3
+                )
                 .frame(width: radius * 2, height: radius * 2)
 
-            // Facet lines — center to vertices
-            GemFacetLines()
-                .stroke(color.opacity(0.4), lineWidth: 0.8)
-                .frame(width: radius * 2, height: radius * 2)
+            // Disc florets — ~38 tiny circles in 3 concentric rings
+            ForEach(0..<florets.count, id: \.self) { i in
+                Circle()
+                    .fill(color.opacity(florets[i].opacity))
+                    .frame(width: florets[i].size, height: florets[i].size)
+                    .offset(x: florets[i].x, y: florets[i].y)
+            }
 
-            // Mid hexagon
-            HexagonShape()
-                .stroke(color.opacity(0.6), lineWidth: 1.2)
-                .frame(width: radius * 1.2, height: radius * 1.2)
+            // Pollen dusting — bright yellow-white specks
+            ForEach(0..<pollenDots.count, id: \.self) { i in
+                Circle()
+                    .fill(Color.white.opacity(0.65))
+                    .frame(width: 1.8, height: 1.8)
+                    .offset(x: pollenDots[i].x, y: pollenDots[i].y)
+            }
 
-            // Inner hexagon filled
-            HexagonShape()
-                .fill(color.opacity(0.5))
-                .frame(width: radius * 0.6, height: radius * 0.6)
+            // Central stigma — raised dome with strong highlight
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [color, color.opacity(0.7)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius * 0.18
+                    )
+                )
+                .frame(width: radius * 0.32, height: radius * 0.32)
 
-            // Star highlight
-            GemStarShape()
-                .fill(Color.white.opacity(0.25))
-                .frame(width: radius * 1.4, height: radius * 1.4)
+            // Stigma highlight — off-center white shine
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.7), Color.white.opacity(0)],
+                        center: UnitPoint(x: 0.3, y: 0.3),
+                        startRadius: 0,
+                        endRadius: radius * 0.18
+                    )
+                )
+                .frame(width: radius * 0.32, height: radius * 0.32)
+
+            // Dome-wide highlight for 3D illusion
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.3), Color.white.opacity(0)],
+                        center: UnitPoint(x: 0.35, y: 0.35),
+                        startRadius: 0,
+                        endRadius: radius * 0.7
+                    )
+                )
+                .frame(width: radius * 1.6, height: radius * 1.6)
         }
     }
 }
 
-private struct HexagonShape: Shape {
+/// Rings — Tubular floret rings (sunflower-like)
+struct RingsCenterView: View {
+    let radius: CGFloat
+    let color: Color
+
+    // 5 rings of radial floret tubes, getting larger toward the edge
+    private struct FloretTube: Identifiable {
+        let id: Int
+        let ringRadius: CGFloat
+        let angle: CGFloat
+        let width: CGFloat
+        let height: CGFloat
+        let opacity: Double
+    }
+
+    private var floretTubes: [FloretTube] {
+        var result: [FloretTube] = []
+        var idCounter = 0
+        let rings: [(count: Int, radiusFraction: CGFloat, tubeW: CGFloat, tubeH: CGFloat, opacity: Double)] = [
+            (16, 0.88, 3.5, 7.0, 0.40),   // outermost — largest, lightest
+            (14, 0.70, 3.0, 6.0, 0.50),
+            (12, 0.53, 2.5, 5.0, 0.60),
+            (12, 0.38, 2.2, 4.5, 0.70),
+            (10, 0.22, 2.0, 4.0, 0.80),    // innermost — smallest, darkest
+        ]
+        for ring in rings {
+            for i in 0..<ring.count {
+                let angle = CGFloat(i) * 2 * .pi / CGFloat(ring.count)
+                let r = radius * ring.radiusFraction
+                result.append(FloretTube(
+                    id: idCounter,
+                    ringRadius: r,
+                    angle: angle,
+                    width: ring.tubeW,
+                    height: ring.tubeH,
+                    opacity: ring.opacity
+                ))
+                idCounter += 1
+            }
+        }
+        return result
+    }
+
+    var body: some View {
+        ZStack {
+            // Warm radial gradient disc background
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [color.opacity(0.75), color.opacity(0.45), color.opacity(0.2)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius
+                    )
+                )
+                .frame(width: radius * 2, height: radius * 2)
+
+            // Ring separator circles between floret bands
+            ForEach([0.95, 0.78, 0.60, 0.45, 0.30], id: \.self) { frac in
+                Circle()
+                    .stroke(color.opacity(0.2), lineWidth: 0.6)
+                    .frame(width: radius * 2 * frac, height: radius * 2 * frac)
+            }
+
+            // Floret tubes — rounded rects arranged radially
+            ForEach(floretTubes) { tube in
+                RoundedRectangle(cornerRadius: tube.width * 0.4)
+                    .fill(color.opacity(tube.opacity))
+                    .frame(width: tube.width, height: tube.height)
+                    .offset(y: -tube.ringRadius)
+                    .rotationEffect(.radians(Double(tube.angle)))
+            }
+
+            // Dense core with gradient
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [color.opacity(0.9), color.opacity(0.5)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius * 0.12
+                    )
+                )
+                .frame(width: radius * 0.2, height: radius * 0.2)
+
+            // Pollen dot cluster on core
+            ForEach(0..<6, id: \.self) { i in
+                let angle = CGFloat(i) * .pi / 3
+                let r: CGFloat = radius * 0.06
+                Circle()
+                    .fill(Color.white.opacity(0.5))
+                    .frame(width: 1.5, height: 1.5)
+                    .offset(x: r * cos(angle), y: r * sin(angle))
+            }
+        }
+    }
+}
+
+/// Seed Spiral — Enhanced Fibonacci spiral (sunflower seed head) with 89 teardrop seeds
+struct SeedSpiralCenterView: View {
+    let radius: CGFloat
+    let color: Color
+
+    private struct Seed: Identifiable {
+        let id: Int
+        let x: CGFloat
+        let y: CGFloat
+        let size: CGFloat
+        let angle: Double  // orientation along spiral
+        let dark: Bool     // alternating two-tone pattern
+    }
+
+    private var seeds: [Seed] {
+        let count = 89  // Fibonacci number for dense pattern
+        var result: [Seed] = []
+        for i in 0..<count {
+            let t = CGFloat(i) / CGFloat(count)
+            let r = radius * 0.92 * sqrt(t)
+            let theta = CGFloat(i) * 2.399963  // golden angle
+            let x = r * cos(theta)
+            let y = r * sin(theta)
+            // Size gradient: smaller at center, larger at edge
+            let size: CGFloat = 1.5 + t * 3.5
+            // Spiral direction for orienting the teardrop
+            let spiralAngle = Double(atan2(y, x)) * 180 / .pi + 90
+            // Two-tone: alternate in a Fibonacci-inspired pattern
+            let dark = (i % 3 != 0)
+            result.append(Seed(id: i, x: x, y: y, size: size, angle: spiralAngle, dark: dark))
+        }
+        return result
+    }
+
+    var body: some View {
+        ZStack {
+            // Background dome disc — multi-stop radial gradient for depth
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [color.opacity(0.7), color.opacity(0.35), color.opacity(0.15)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius
+                    )
+                )
+                .frame(width: radius * 2, height: radius * 2)
+
+            // Teardrop seeds in Fibonacci spiral
+            ForEach(seeds) { seed in
+                TeardropSeedShape()
+                    .fill(seed.dark ? color.opacity(0.5) : color.opacity(0.8))
+                    .frame(width: seed.size * 0.7, height: seed.size)
+                    .rotationEffect(.degrees(seed.angle))
+                    .offset(x: seed.x, y: seed.y)
+            }
+
+            // Central nub — bright circle
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [color, color.opacity(0.6)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius * 0.08
+                    )
+                )
+                .frame(width: radius * 0.14, height: radius * 0.14)
+
+            // Nub highlight dot
+            Circle()
+                .fill(Color.white.opacity(0.6))
+                .frame(width: radius * 0.06, height: radius * 0.06)
+                .offset(x: -radius * 0.01, y: -radius * 0.01)
+        }
+    }
+}
+
+/// Tiny pointed teardrop seed shape for seed spiral center
+private struct TeardropSeedShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width
+        let h = rect.height
+        let midX = w / 2
+        var path = Path()
+        // Pointed top, rounded bottom
+        path.move(to: CGPoint(x: midX, y: 0))
+        path.addCurve(
+            to: CGPoint(x: midX + w * 0.5, y: h * 0.55),
+            control1: CGPoint(x: midX + w * 0.05, y: h * 0.15),
+            control2: CGPoint(x: midX + w * 0.5, y: h * 0.35)
+        )
+        path.addCurve(
+            to: CGPoint(x: midX, y: h),
+            control1: CGPoint(x: midX + w * 0.5, y: h * 0.8),
+            control2: CGPoint(x: midX + w * 0.15, y: h)
+        )
+        path.addCurve(
+            to: CGPoint(x: midX - w * 0.5, y: h * 0.55),
+            control1: CGPoint(x: midX - w * 0.15, y: h),
+            control2: CGPoint(x: midX - w * 0.5, y: h * 0.8)
+        )
+        path.addCurve(
+            to: CGPoint(x: midX, y: 0),
+            control1: CGPoint(x: midX - w * 0.5, y: h * 0.35),
+            control2: CGPoint(x: midX - w * 0.05, y: h * 0.15)
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Gem — Crystalline pistil with faceted octagon layers and light caustics
+struct GemCenterView: View {
+    let radius: CGFloat
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            // Outer soft diffuse glow
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [color.opacity(0.2), color.opacity(0.05), Color.clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius * 1.4
+                    )
+                )
+                .frame(width: radius * 2.8, height: radius * 2.8)
+
+            // Outer faceted ring — octagon with gradient fill
+            OctagonShape()
+                .fill(
+                    RadialGradient(
+                        colors: [color.opacity(0.5), color.opacity(0.2)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius
+                    )
+                )
+                .frame(width: radius * 2, height: radius * 2)
+
+            // Outer octagon stroke
+            OctagonShape()
+                .stroke(color.opacity(0.8), lineWidth: 1.5)
+                .frame(width: radius * 2, height: radius * 2)
+
+            // Facet lines — center to each vertex of outer octagon
+            OctagonFacetLines()
+                .stroke(
+                    LinearGradient(
+                        colors: [color.opacity(0.15), color.opacity(0.45)],
+                        startPoint: .center,
+                        endPoint: .top
+                    ),
+                    lineWidth: 0.8
+                )
+                .frame(width: radius * 2, height: radius * 2)
+
+            // Inner facet layer 1 — smaller octagon rotated 22.5°
+            OctagonShape()
+                .fill(color.opacity(0.25))
+                .frame(width: radius * 1.25, height: radius * 1.25)
+                .rotationEffect(.degrees(22.5))
+
+            OctagonShape()
+                .stroke(color.opacity(0.5), lineWidth: 1)
+                .frame(width: radius * 1.25, height: radius * 1.25)
+                .rotationEffect(.degrees(22.5))
+
+            // Inner facet layer 2 — square rotated 45° (diamond)
+            Rectangle()
+                .fill(color.opacity(0.3))
+                .frame(width: radius * 0.7, height: radius * 0.7)
+                .rotationEffect(.degrees(45))
+
+            Rectangle()
+                .stroke(color.opacity(0.45), lineWidth: 0.8)
+                .frame(width: radius * 0.7, height: radius * 0.7)
+                .rotationEffect(.degrees(45))
+
+            // Light caustic — offset elliptical highlight with soft edge
+            Ellipse()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.45), Color.white.opacity(0)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius * 0.3
+                    )
+                )
+                .frame(width: radius * 0.55, height: radius * 0.4)
+                .offset(x: -radius * 0.18, y: -radius * 0.2)
+
+            // Inner jewel — bright center with light refraction
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.6), color, color.opacity(0.3)],
+                        center: UnitPoint(x: 0.4, y: 0.35),
+                        startRadius: 0,
+                        endRadius: radius * 0.2
+                    )
+                )
+                .frame(width: radius * 0.35, height: radius * 0.35)
+
+            // Sparkle dots at cardinal points
+            ForEach(0..<4, id: \.self) { i in
+                let angle = CGFloat(i) * .pi / 2
+                let r = radius * 0.6
+                Circle()
+                    .fill(Color.white.opacity(0.7))
+                    .frame(width: 2.0, height: 2.0)
+                    .offset(x: r * cos(angle), y: r * sin(angle))
+            }
+        }
+    }
+}
+
+/// Regular 8-sided polygon for gem center design
+private struct OctagonShape: Shape {
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let r = min(rect.width, rect.height) / 2
         var path = Path()
-        for i in 0..<6 {
-            let angle = CGFloat(i) * .pi / 3 - .pi / 2
+        for i in 0..<8 {
+            let angle = CGFloat(i) * .pi / 4 - .pi / 2
             let point = CGPoint(x: center.x + r * cos(angle), y: center.y + r * sin(angle))
             if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
         }
@@ -960,13 +1207,14 @@ private struct HexagonShape: Shape {
     }
 }
 
-private struct GemFacetLines: Shape {
+/// Facet lines from center to each octagon vertex
+private struct OctagonFacetLines: Shape {
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let r = min(rect.width, rect.height) / 2
         var path = Path()
-        for i in 0..<6 {
-            let angle = CGFloat(i) * .pi / 3 - .pi / 2
+        for i in 0..<8 {
+            let angle = CGFloat(i) * .pi / 4 - .pi / 2
             path.move(to: center)
             path.addLine(to: CGPoint(x: center.x + r * cos(angle), y: center.y + r * sin(angle)))
         }
@@ -974,51 +1222,92 @@ private struct GemFacetLines: Shape {
     }
 }
 
-/// 6-pointed star highlight for gem center
-private struct GemStarShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let outerR = min(rect.width, rect.height) / 2
-        let innerR = outerR * 0.35
-        var path = Path()
-        for i in 0..<12 {
-            let angle = CGFloat(i) * .pi / 6 - .pi / 2
-            let r = (i % 2 == 0) ? outerR : innerR
-            let point = CGPoint(x: center.x + r * cos(angle), y: center.y + r * sin(angle))
-            if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
-        }
-        path.closeSubpath()
-        return path
-    }
-}
-
-/// Swirl — double logarithmic spiral with filled core
+/// Swirl — Organic stigma spiral (rose/ranunculus-like) with triple arms and pollen scatter
 struct SwirlCenterView: View {
     let radius: CGFloat
     let color: Color
 
+    // Pollen dots distributed along spiral arms
+    private var pollenDots: [(x: CGFloat, y: CGFloat)] {
+        var result: [(CGFloat, CGFloat)] = []
+        let turns: CGFloat = 4.5
+        let steps = 15
+        for i in 0..<steps {
+            let t = CGFloat(i + 3) / CGFloat(steps + 3)
+            let angle = t * turns * 2 * .pi + CGFloat(i % 3) * 2 * .pi / 3
+            let r = radius * 0.9 * t
+            result.append((r * cos(angle), r * sin(angle)))
+        }
+        return result
+    }
+
     var body: some View {
         ZStack {
-            // Background disc
+            // Background disc — multi-stop radial gradient
             Circle()
-                .fill(color.opacity(0.2))
+                .fill(
+                    RadialGradient(
+                        colors: [color.opacity(0.6), color.opacity(0.3), color.opacity(0.12)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius
+                    )
+                )
                 .frame(width: radius * 2, height: radius * 2)
 
-            // Primary spiral
-            SpiralShape(turns: 3.5)
-                .stroke(color.opacity(0.85), lineWidth: 2)
+            // Tertiary spiral — lightest weight, 120° offset
+            SpiralShape(turns: 4.5)
+                .stroke(color.opacity(0.25), lineWidth: 1.2)
                 .frame(width: radius * 2, height: radius * 2)
+                .rotationEffect(.degrees(240))
 
-            // Secondary spiral — counter-rotated for depth
-            SpiralShape(turns: 3.5)
-                .stroke(color.opacity(0.4), lineWidth: 1.2)
-                .frame(width: radius * 2, height: radius * 2)
+            // Secondary spiral — counter-rotated, slightly offset for 3D depth
+            SpiralShape(turns: 4.5)
+                .stroke(color.opacity(0.45), lineWidth: 2)
+                .frame(width: radius * 1.9, height: radius * 1.9)
                 .rotationEffect(.degrees(180))
 
-            // Core dot
+            // Primary spiral — thickest stroke with bold presence
+            SpiralShape(turns: 4.5)
+                .stroke(color.opacity(0.85), lineWidth: 3)
+                .frame(width: radius * 2, height: radius * 2)
+
+            // Pollen scatter along spiral arms
+            ForEach(0..<pollenDots.count, id: \.self) { i in
+                Circle()
+                    .fill(color.opacity(0.55))
+                    .frame(width: 2.0, height: 2.0)
+                    .offset(x: pollenDots[i].x, y: pollenDots[i].y)
+            }
+
+            // Central mound — multi-layered core
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [color.opacity(0.9), color.opacity(0.5)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: radius * 0.15
+                    )
+                )
+                .frame(width: radius * 0.28, height: radius * 0.28)
+
+            // Highlight dome on central mound
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color.white.opacity(0.5), Color.white.opacity(0)],
+                        center: UnitPoint(x: 0.35, y: 0.35),
+                        startRadius: 0,
+                        endRadius: radius * 0.12
+                    )
+                )
+                .frame(width: radius * 0.24, height: radius * 0.24)
+
+            // Tiny stigma tip dot
             Circle()
                 .fill(color)
-                .frame(width: 4, height: 4)
+                .frame(width: radius * 0.07, height: radius * 0.07)
         }
     }
 }
@@ -1029,7 +1318,7 @@ private struct SpiralShape: Shape {
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let maxR = min(rect.width, rect.height) / 2
-        let steps = 100
+        let steps = 120
 
         var path = Path()
         for i in 0...steps {

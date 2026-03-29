@@ -145,7 +145,7 @@ struct FlowerBuilderCanvas: View {
 
     @ViewBuilder
     private func centerLayer(size: CGFloat) -> some View {
-        let centerRadius = size * 0.11
+        let centerRadius = size * 0.14
 
         switch centerDesign {
         case .smooth:
