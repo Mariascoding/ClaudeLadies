@@ -6,6 +6,8 @@ enum LabItem: String, CaseIterable, Identifiable {
     case lunarMirror
     case radialPicker
     case cycleDial
+    case bloom
+    case flowerBuilder
 
     var id: String { rawValue }
 
@@ -16,6 +18,8 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .lunarMirror: "Lunar Mirror"
         case .radialPicker: "Radial Picker"
         case .cycleDial: "Cycle Dial"
+        case .bloom: "Bloom"
+        case .flowerBuilder: "Flower Builder"
         }
     }
 
@@ -26,6 +30,8 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .lunarMirror: "Your moon, your cycle, your wisdom"
         case .radialPicker: "Circular selector for cycle insights"
         case .cycleDial: "Interactive phase pie chart with haptic dial"
+        case .bloom: "Press and hold to blossom through emotion"
+        case .flowerBuilder: "Design your own flower, petal by petal"
         }
     }
 
@@ -36,6 +42,8 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .lunarMirror: "moonphase.full.moon"
         case .radialPicker: "circle.grid.cross.fill"
         case .cycleDial: "chart.pie.fill"
+        case .bloom: "sparkle"
+        case .flowerBuilder: "camera.macro"
         }
     }
 
@@ -46,6 +54,8 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .lunarMirror: Color(red: 0.92, green: 0.78, blue: 0.55)
         case .radialPicker: .appTerracotta
         case .cycleDial: .appSage
+        case .bloom: Color(red: 0.95, green: 0.78, blue: 0.40)
+        case .flowerBuilder: .appRose
         }
     }
 
@@ -62,6 +72,10 @@ enum LabItem: String, CaseIterable, Identifiable {
             RadialPickerView()
         case .cycleDial:
             PieChartLabView()
+        case .bloom:
+            BloomLabView()
+        case .flowerBuilder:
+            FlowerBuilderView()
         }
     }
 }
