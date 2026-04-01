@@ -566,6 +566,53 @@ struct LotusPetalShape: Shape {
     }
 }
 
+/// Round — smooth broad elliptical petal (same geometry as LotusPetalShape)
+struct RoundPetalShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width
+        let h = rect.height
+        let midX = w / 2
+
+        var path = Path()
+        path.move(to: CGPoint(x: midX, y: h))
+
+        // Right — very broad elliptical shape
+        path.addCurve(
+            to: CGPoint(x: midX, y: 0),
+            control1: CGPoint(x: midX + w * 0.52, y: h * 0.75),
+            control2: CGPoint(x: midX + w * 0.52, y: h * 0.25)
+        )
+
+        // Left — mirror
+        path.addCurve(
+            to: CGPoint(x: midX, y: h),
+            control1: CGPoint(x: midX - w * 0.52, y: h * 0.25),
+            control2: CGPoint(x: midX - w * 0.52, y: h * 0.75)
+        )
+
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Delicate center vein for round petals — single midrib fading from base outward
+struct RoundPetalVeinShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let h = rect.height
+        let midX = rect.width / 2
+
+        var path = Path()
+        path.move(to: CGPoint(x: midX, y: h))
+        // Gentle curve from base to tip
+        path.addCurve(
+            to: CGPoint(x: midX, y: h * 0.1),
+            control1: CGPoint(x: midX, y: h * 0.65),
+            control2: CGPoint(x: midX, y: h * 0.35)
+        )
+        return path
+    }
+}
+
 // MARK: - Stamen Views
 
 /// Dewdrops — stalks with teardrop tips
@@ -704,6 +751,55 @@ struct PollenCloudStamenView: View {
                 .frame(width: dots[i].2, height: dots[i].2)
                 .offset(x: dots[i].0, y: dots[i].1)
         }
+    }
+}
+
+/// Corona — 5 smooth elongated teardrop rays radiating from center (forget-me-not white star)
+struct CoronaStamenView: View {
+    let radius: CGFloat
+    let color: Color
+    let count: Int
+
+    var body: some View {
+        ForEach(0..<count, id: \.self) { i in
+            let angle = Double(i) * 360.0 / Double(count)
+
+            CoronaRayShape()
+                .fill(color.opacity(0.85))
+                .frame(width: radius * 0.45, height: radius * 0.9)
+                .offset(y: -radius * 0.45)
+                .rotationEffect(.degrees(angle))
+        }
+    }
+}
+
+/// Smooth elongated teardrop ray for corona stamen
+private struct CoronaRayShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width
+        let h = rect.height
+        let midX = w / 2
+
+        var path = Path()
+        // Start at base (center of flower)
+        path.move(to: CGPoint(x: midX, y: h))
+
+        // Right side — smooth bulging teardrop
+        path.addCurve(
+            to: CGPoint(x: midX, y: 0),
+            control1: CGPoint(x: midX + w * 0.45, y: h * 0.65),
+            control2: CGPoint(x: midX + w * 0.25, y: h * 0.15)
+        )
+
+        // Left side — mirror
+        path.addCurve(
+            to: CGPoint(x: midX, y: h),
+            control1: CGPoint(x: midX - w * 0.25, y: h * 0.15),
+            control2: CGPoint(x: midX - w * 0.45, y: h * 0.65)
+        )
+
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -1358,6 +1454,21 @@ extension OuterPetalDesign {
         case .cosmos:
             CosmosPetalShape().fill(color)
                 .frame(width: size.width, height: size.height)
+        case .round:
+            ZStack {
+                RoundPetalShape().fill(color)
+                    .frame(width: size.width, height: size.height)
+                RoundPetalVeinShape()
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.45), Color.white.opacity(0)],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        ),
+                        lineWidth: 1.2
+                    )
+                    .frame(width: size.width, height: size.height)
+            }
         }
     }
 }

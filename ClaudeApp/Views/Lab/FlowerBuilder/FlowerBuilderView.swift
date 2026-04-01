@@ -10,6 +10,7 @@ struct FlowerBuilderView: View {
     @State private var innerColor: Color = .appTerracotta
     @State private var stamenColorChoice: Color = Color(red: 0.92, green: 0.78, blue: 0.55)
     @State private var centerColor: Color = .appSage
+    @State private var geometry: FlowerGeometry = .default
     @State private var selectedPart: FlowerPart = .outerPetals
 
     var body: some View {
@@ -24,12 +25,39 @@ struct FlowerBuilderView: View {
                     outerColor: outerColor,
                     innerColor: innerColor,
                     stamenColor: stamenColorChoice,
-                    centerColor: centerColor
+                    centerColor: centerColor,
+                    geometry: geometry
                 )
                 .frame(height: 300)
                 .frame(maxWidth: .infinity)
                 .warmCard()
                 .padding(.horizontal, AppTheme.Spacing.md)
+
+                // Preset selector
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: AppTheme.Spacing.sm) {
+                        ForEach(FlowerPreset.allCases) { preset in
+                            Button {
+                                applyPreset(preset)
+                            } label: {
+                                HStack(spacing: AppTheme.Spacing.xs) {
+                                    Image(systemName: preset.icon)
+                                        .font(.caption)
+                                    Text(preset.displayName)
+                                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                                }
+                                .foregroundStyle(preset.accentColor)
+                                .padding(.horizontal, AppTheme.Spacing.sm)
+                                .padding(.vertical, AppTheme.Spacing.xs)
+                                .background(
+                                    Capsule()
+                                        .fill(preset.accentColor.opacity(0.1))
+                                )
+                            }
+                        }
+                    }
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                }
 
                 // Part selector
                 Picker("Flower Part", selection: $selectedPart) {
@@ -89,6 +117,7 @@ struct FlowerBuilderView: View {
                         innerColor = FlowerColor.allCases.randomElement()!.color
                         stamenColorChoice = FlowerColor.allCases.randomElement()!.color
                         centerColor = FlowerColor.allCases.randomElement()!.color
+                        geometry = .default
                     }
                 }
                 .padding(.bottom, AppTheme.Spacing.lg)
@@ -97,5 +126,19 @@ struct FlowerBuilderView: View {
         }
         .background(Color.appCream)
         .navigationTitle("Flower Builder")
+    }
+
+    private func applyPreset(_ preset: FlowerPreset) {
+        withAnimation(AppTheme.gentleAnimation) {
+            outerDesign = preset.outerDesign
+            innerDesign = preset.innerDesign
+            stamenDesign = preset.stamen
+            centerDesign = preset.center
+            outerColor = preset.outerColor.color
+            innerColor = preset.innerColor.color
+            stamenColorChoice = preset.stamenColor.color
+            centerColor = preset.centerColor.color
+            geometry = preset.geometry
+        }
     }
 }
