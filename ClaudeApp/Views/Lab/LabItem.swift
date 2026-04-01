@@ -8,6 +8,7 @@ enum LabItem: String, CaseIterable, Identifiable {
     case cycleDial
     case bloom
     case flowerBuilder
+    case flowerBloom
 
     var id: String { rawValue }
 
@@ -20,6 +21,7 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .cycleDial: "Cycle Dial"
         case .bloom: "Bloom"
         case .flowerBuilder: "Flower Builder"
+        case .flowerBloom: "Flower Bloom"
         }
     }
 
@@ -32,6 +34,7 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .cycleDial: "Interactive phase pie chart with haptic dial"
         case .bloom: "Press and hold to blossom through emotion"
         case .flowerBuilder: "Design your own flower, petal by petal"
+        case .flowerBloom: "Design a flower, then press to blossom"
         }
     }
 
@@ -44,6 +47,7 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .cycleDial: "chart.pie.fill"
         case .bloom: "sparkle"
         case .flowerBuilder: "camera.macro"
+        case .flowerBloom: "sparkles"
         }
     }
 
@@ -56,6 +60,7 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .cycleDial: .appSage
         case .bloom: Color(red: 0.95, green: 0.78, blue: 0.40)
         case .flowerBuilder: .appRose
+        case .flowerBloom: .appRose
         }
     }
 
@@ -76,6 +81,8 @@ enum LabItem: String, CaseIterable, Identifiable {
             BloomLabView()
         case .flowerBuilder:
             FlowerBuilderView()
+        case .flowerBloom:
+            FlowerBloomView()
         }
     }
 }
