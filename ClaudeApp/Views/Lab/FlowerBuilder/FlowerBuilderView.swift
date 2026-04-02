@@ -18,8 +18,7 @@ struct FlowerBuilderView: View {
     @State private var selectedPart: FlowerPart = .outerPetals
 
     // Save flow state
-    @State private var showSaveSheet = false
-    @State private var saveName = ""
+    @State private var savedConfirmationName: String?
     @State private var editingDesign: SavedFlowerDesign?
     @State private var showRenameAlert = false
     @State private var renameName = ""
@@ -41,6 +40,7 @@ struct FlowerBuilderView: View {
                 )
                 .frame(height: 300)
                 .frame(maxWidth: .infinity)
+                .allowsHitTesting(false)
                 .warmCard()
                 .padding(.horizontal, AppTheme.Spacing.md)
 
@@ -179,9 +179,16 @@ struct FlowerBuilderView: View {
                         }
                     }
 
-                    GentleButton("Save Flower") {
-                        saveName = generateAutoName()
-                        showSaveSheet = true
+                    Button {
+                        saveFlowerDirectly()
+                    } label: {
+                        Text("Save Flower")
+                            .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, AppTheme.Spacing.lg)
+                            .padding(.vertical, AppTheme.Spacing.md)
+                            .background(Color.appRose)
+                            .clipShape(Capsule())
                     }
                 }
                 .padding(.bottom, AppTheme.Spacing.lg)
@@ -190,8 +197,19 @@ struct FlowerBuilderView: View {
         }
         .background(Color.appCream)
         .navigationTitle("Flower Builder")
-        .sheet(isPresented: $showSaveSheet) {
-            saveSheet
+        .overlay(alignment: .top) {
+            if let name = savedConfirmationName {
+                Text("Saved \"\(name)\"")
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, AppTheme.Spacing.lg)
+                    .padding(.vertical, AppTheme.Spacing.sm)
+                    .background(Color.appSage.opacity(0.9))
+                    .clipShape(Capsule())
+                    .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                    .padding(.top, AppTheme.Spacing.sm)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
         .alert("Rename Flower", isPresented: $showRenameAlert) {
             TextField("Name", text: $renameName)
@@ -206,55 +224,6 @@ struct FlowerBuilderView: View {
                 editingDesign = nil
             }
         }
-    }
-
-    // MARK: - Save Sheet
-
-    private var saveSheet: some View {
-        NavigationStack {
-            VStack(spacing: AppTheme.Spacing.lg) {
-                // Mini preview
-                FlowerBuilderCanvas(
-                    outerDesign: outerDesign,
-                    innerDesign: innerDesign,
-                    stamenDesign: stamenDesign,
-                    centerDesign: centerDesign,
-                    outerColor: outerColor,
-                    innerColor: innerColor,
-                    stamenColor: stamenColorChoice,
-                    centerColor: centerColor,
-                    geometry: geometry
-                )
-                .frame(width: 180, height: 180)
-                .warmCard()
-
-                TextField("Flower name", text: $saveName)
-                    .font(.system(.title3, design: AppTheme.fontFamily, weight: .medium))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, AppTheme.Spacing.lg)
-
-                GentleButton("Save") {
-                    saveCurrentDesign()
-                    showSaveSheet = false
-                }
-                .disabled(saveName.trimmingCharacters(in: .whitespaces).isEmpty)
-                .opacity(saveName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
-
-                Spacer()
-            }
-            .padding(.top, AppTheme.Spacing.xl)
-            .background(Color.appCream)
-            .navigationTitle("Save Flower")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        showSaveSheet = false
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium])
     }
 
     // MARK: - Actions
@@ -287,9 +256,8 @@ struct FlowerBuilderView: View {
         }
     }
 
-    private func saveCurrentDesign() {
-        let trimmedName = saveName.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty else { return }
+    private func saveFlowerDirectly() {
+        let name = generateAutoName()
 
         let closestOuter = FlowerColor.closest(to: outerColor)
         let closestInner = FlowerColor.closest(to: innerColor)
@@ -297,7 +265,7 @@ struct FlowerBuilderView: View {
         let closestCenter = FlowerColor.closest(to: centerColor)
 
         let design = SavedFlowerDesign(
-            name: trimmedName,
+            name: name,
             outerDesign: outerDesign,
             innerDesign: innerDesign,
             stamenDesign: stamenDesign,
@@ -310,6 +278,16 @@ struct FlowerBuilderView: View {
         )
         modelContext.insert(design)
         try? modelContext.save()
+
+        // Show confirmation toast
+        withAnimation(AppTheme.gentleAnimation) {
+            savedConfirmationName = name
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(AppTheme.gentleAnimation) {
+                savedConfirmationName = nil
+            }
+        }
     }
 
     // MARK: - Auto Name Generation
