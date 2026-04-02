@@ -1,6 +1,10 @@
 import SwiftUI
+import SwiftData
 
 struct FlowerBuilderView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \SavedFlowerDesign.createdDate, order: .reverse) private var savedDesigns: [SavedFlowerDesign]
+
     @State private var outerDesign: OuterPetalDesign = .classic
     @State private var innerDesign: InnerPetalDesign = .tulip
     @State private var stamenDesign: StamenDesign = .dewdrops
@@ -12,6 +16,13 @@ struct FlowerBuilderView: View {
     @State private var centerColor: Color = .appSage
     @State private var geometry: FlowerGeometry = .default
     @State private var selectedPart: FlowerPart = .outerPetals
+
+    // Save flow state
+    @State private var showSaveSheet = false
+    @State private var saveName = ""
+    @State private var editingDesign: SavedFlowerDesign?
+    @State private var showRenameAlert = false
+    @State private var renameName = ""
 
     var body: some View {
         ScrollView {
@@ -57,6 +68,52 @@ struct FlowerBuilderView: View {
                         }
                     }
                     .padding(.horizontal, AppTheme.Spacing.md)
+                }
+
+                // My Flowers section
+                if !savedDesigns.isEmpty {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
+                        Text("My Flowers")
+                            .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+                            .padding(.horizontal, AppTheme.Spacing.md)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: AppTheme.Spacing.sm) {
+                                ForEach(savedDesigns) { design in
+                                    Button {
+                                        loadDesign(design)
+                                    } label: {
+                                        Text(design.name)
+                                            .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                                            .foregroundStyle(design.outerColor.color)
+                                            .padding(.horizontal, AppTheme.Spacing.sm)
+                                            .padding(.vertical, AppTheme.Spacing.xs)
+                                            .background(
+                                                Capsule()
+                                                    .fill(design.outerColor.color.opacity(0.1))
+                                            )
+                                    }
+                                    .contextMenu {
+                                        Button {
+                                            editingDesign = design
+                                            renameName = design.name
+                                            showRenameAlert = true
+                                        } label: {
+                                            Label("Rename", systemImage: "pencil")
+                                        }
+                                        Button(role: .destructive) {
+                                            modelContext.delete(design)
+                                            try? modelContext.save()
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, AppTheme.Spacing.md)
+                        }
+                    }
                 }
 
                 // Part selector
@@ -106,18 +163,25 @@ struct FlowerBuilderView: View {
                 .padding(.horizontal, AppTheme.Spacing.md)
                 .animation(AppTheme.gentleAnimation, value: selectedPart)
 
-                // Randomize button
-                GentleOutlineButton("Randomize") {
-                    withAnimation(AppTheme.gentleAnimation) {
-                        outerDesign = OuterPetalDesign.allCases.randomElement()!
-                        innerDesign = InnerPetalDesign.allCases.randomElement()!
-                        stamenDesign = StamenDesign.allCases.randomElement()!
-                        centerDesign = CenterDesign.allCases.randomElement()!
-                        outerColor = FlowerColor.allCases.randomElement()!.color
-                        innerColor = FlowerColor.allCases.randomElement()!.color
-                        stamenColorChoice = FlowerColor.allCases.randomElement()!.color
-                        centerColor = FlowerColor.allCases.randomElement()!.color
-                        geometry = .default
+                // Action buttons
+                HStack(spacing: AppTheme.Spacing.md) {
+                    GentleOutlineButton("Randomize") {
+                        withAnimation(AppTheme.gentleAnimation) {
+                            outerDesign = OuterPetalDesign.allCases.randomElement()!
+                            innerDesign = InnerPetalDesign.allCases.randomElement()!
+                            stamenDesign = StamenDesign.allCases.randomElement()!
+                            centerDesign = CenterDesign.allCases.randomElement()!
+                            outerColor = FlowerColor.allCases.randomElement()!.color
+                            innerColor = FlowerColor.allCases.randomElement()!.color
+                            stamenColorChoice = FlowerColor.allCases.randomElement()!.color
+                            centerColor = FlowerColor.allCases.randomElement()!.color
+                            geometry = .default
+                        }
+                    }
+
+                    GentleButton("Save Flower") {
+                        saveName = generateAutoName()
+                        showSaveSheet = true
                     }
                 }
                 .padding(.bottom, AppTheme.Spacing.lg)
@@ -126,7 +190,74 @@ struct FlowerBuilderView: View {
         }
         .background(Color.appCream)
         .navigationTitle("Flower Builder")
+        .sheet(isPresented: $showSaveSheet) {
+            saveSheet
+        }
+        .alert("Rename Flower", isPresented: $showRenameAlert) {
+            TextField("Name", text: $renameName)
+            Button("Cancel", role: .cancel) {
+                editingDesign = nil
+            }
+            Button("Save") {
+                if let design = editingDesign, !renameName.trimmingCharacters(in: .whitespaces).isEmpty {
+                    design.name = renameName.trimmingCharacters(in: .whitespaces)
+                    try? modelContext.save()
+                }
+                editingDesign = nil
+            }
+        }
     }
+
+    // MARK: - Save Sheet
+
+    private var saveSheet: some View {
+        NavigationStack {
+            VStack(spacing: AppTheme.Spacing.lg) {
+                // Mini preview
+                FlowerBuilderCanvas(
+                    outerDesign: outerDesign,
+                    innerDesign: innerDesign,
+                    stamenDesign: stamenDesign,
+                    centerDesign: centerDesign,
+                    outerColor: outerColor,
+                    innerColor: innerColor,
+                    stamenColor: stamenColorChoice,
+                    centerColor: centerColor,
+                    geometry: geometry
+                )
+                .frame(width: 180, height: 180)
+                .warmCard()
+
+                TextField("Flower name", text: $saveName)
+                    .font(.system(.title3, design: AppTheme.fontFamily, weight: .medium))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppTheme.Spacing.lg)
+
+                GentleButton("Save") {
+                    saveCurrentDesign()
+                    showSaveSheet = false
+                }
+                .disabled(saveName.trimmingCharacters(in: .whitespaces).isEmpty)
+                .opacity(saveName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
+
+                Spacer()
+            }
+            .padding(.top, AppTheme.Spacing.xl)
+            .background(Color.appCream)
+            .navigationTitle("Save Flower")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        showSaveSheet = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    // MARK: - Actions
 
     private func applyPreset(_ preset: FlowerPreset) {
         withAnimation(AppTheme.gentleAnimation) {
@@ -140,5 +271,78 @@ struct FlowerBuilderView: View {
             centerColor = preset.centerColor.color
             geometry = preset.geometry
         }
+    }
+
+    private func loadDesign(_ design: SavedFlowerDesign) {
+        withAnimation(AppTheme.gentleAnimation) {
+            outerDesign = design.outerDesign
+            innerDesign = design.innerDesign
+            stamenDesign = design.stamenDesign
+            centerDesign = design.centerDesign
+            outerColor = design.outerColor.color
+            innerColor = design.innerColor.color
+            stamenColorChoice = design.stamenColor.color
+            centerColor = design.centerColor.color
+            geometry = design.geometry
+        }
+    }
+
+    private func saveCurrentDesign() {
+        let trimmedName = saveName.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty else { return }
+
+        let closestOuter = FlowerColor.closest(to: outerColor)
+        let closestInner = FlowerColor.closest(to: innerColor)
+        let closestStamen = FlowerColor.closest(to: stamenColorChoice)
+        let closestCenter = FlowerColor.closest(to: centerColor)
+
+        let design = SavedFlowerDesign(
+            name: trimmedName,
+            outerDesign: outerDesign,
+            innerDesign: innerDesign,
+            stamenDesign: stamenDesign,
+            centerDesign: centerDesign,
+            outerColor: closestOuter,
+            innerColor: closestInner,
+            stamenColor: closestStamen,
+            centerColor: closestCenter,
+            geometry: geometry
+        )
+        modelContext.insert(design)
+        try? modelContext.save()
+    }
+
+    // MARK: - Auto Name Generation
+
+    private func generateAutoName() -> String {
+        // Check if current design matches a preset
+        let matchedPreset = FlowerPreset.allCases.first { preset in
+            preset.outerDesign == outerDesign &&
+            preset.innerDesign == innerDesign &&
+            preset.stamen == stamenDesign &&
+            preset.center == centerDesign &&
+            preset.geometry == geometry
+        }
+
+        let closestColor = FlowerColor.closest(to: outerColor)
+        let baseName: String
+
+        if let preset = matchedPreset {
+            baseName = "\(preset.displayName) \(closestColor.displayName) Bloom"
+        } else {
+            baseName = "\(outerDesign.displayName) \(closestColor.displayName) Bloom"
+        }
+
+        // Deduplicate against existing saved designs
+        let existingNames = Set(savedDesigns.map(\.name))
+        if !existingNames.contains(baseName) {
+            return baseName
+        }
+
+        var counter = 2
+        while existingNames.contains("\(baseName) \(counter)") {
+            counter += 1
+        }
+        return "\(baseName) \(counter)"
     }
 }

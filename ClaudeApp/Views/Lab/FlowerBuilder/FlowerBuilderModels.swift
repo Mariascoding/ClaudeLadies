@@ -51,6 +51,30 @@ enum FlowerColor: String, CaseIterable, Identifiable {
         case .sunYellow: Color(red: 1.0, green: 0.78, blue: 0.10)
         }
     }
+
+    /// Finds the closest FlowerColor to an arbitrary SwiftUI Color by RGB distance.
+    static func closest(to color: Color) -> FlowerColor {
+        let resolved = color.resolve(in: EnvironmentValues())
+        let r = Double(resolved.red)
+        let g = Double(resolved.green)
+        let b = Double(resolved.blue)
+
+        var best: FlowerColor = .rose
+        var bestDist = Double.infinity
+
+        for fc in FlowerColor.allCases {
+            let fcResolved = fc.color.resolve(in: EnvironmentValues())
+            let dr = r - Double(fcResolved.red)
+            let dg = g - Double(fcResolved.green)
+            let db = b - Double(fcResolved.blue)
+            let dist = dr * dr + dg * dg + db * db
+            if dist < bestDist {
+                bestDist = dist
+                best = fc
+            }
+        }
+        return best
+    }
 }
 
 // MARK: - Flower Part
