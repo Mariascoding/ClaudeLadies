@@ -1,5 +1,7 @@
 import Foundation
+import SwiftUI
 import SwiftData
+import UIKit
 
 @Model
 final class SavedFlowerDesign {
@@ -12,7 +14,7 @@ final class SavedFlowerDesign {
     var stamenDesignRaw: String
     var centerDesignRaw: String
 
-    // Colors stored as FlowerColor raw strings
+    // Colors stored as "R,G,B" component strings (0.0–1.0)
     var outerColorRaw: String
     var innerColorRaw: String
     var stamenColorRaw: String
@@ -33,10 +35,10 @@ final class SavedFlowerDesign {
         innerDesign: InnerPetalDesign,
         stamenDesign: StamenDesign,
         centerDesign: CenterDesign,
-        outerColor: FlowerColor,
-        innerColor: FlowerColor,
-        stamenColor: FlowerColor,
-        centerColor: FlowerColor,
+        outerColor: Color,
+        innerColor: Color,
+        stamenColor: Color,
+        centerColor: Color,
         geometry: FlowerGeometry
     ) {
         self.name = name
@@ -45,10 +47,10 @@ final class SavedFlowerDesign {
         self.innerDesignRaw = innerDesign.rawValue
         self.stamenDesignRaw = stamenDesign.rawValue
         self.centerDesignRaw = centerDesign.rawValue
-        self.outerColorRaw = outerColor.rawValue
-        self.innerColorRaw = innerColor.rawValue
-        self.stamenColorRaw = stamenColor.rawValue
-        self.centerColorRaw = centerColor.rawValue
+        self.outerColorRaw = Self.encode(outerColor)
+        self.innerColorRaw = Self.encode(innerColor)
+        self.stamenColorRaw = Self.encode(stamenColor)
+        self.centerColorRaw = Self.encode(centerColor)
         self.outerCount = geometry.outerCount
         self.backCount = geometry.backCount
         self.innerCount = geometry.innerCount
@@ -56,6 +58,26 @@ final class SavedFlowerDesign {
         self.innerWidth = Double(geometry.innerWidth)
         self.centerScale = Double(geometry.centerScale)
         self.stamenScale = Double(geometry.stamenScale)
+    }
+
+    // MARK: - Color Encoding
+
+    private static func encode(_ color: Color) -> String {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
+        UIColor(color).getRed(&r, green: &g, blue: &b, alpha: nil)
+        return "\(r),\(g),\(b)"
+    }
+
+    private static func decode(_ raw: String) -> Color {
+        let parts = raw.split(separator: ",").compactMap { Double($0) }
+        if parts.count == 3 {
+            return Color(red: parts[0], green: parts[1], blue: parts[2])
+        }
+        // Fallback: try interpreting as a FlowerColor raw value (legacy data)
+        if let fc = FlowerColor(rawValue: raw) {
+            return fc.color
+        }
+        return .appRose
     }
 
     // MARK: - Computed Accessors
@@ -80,24 +102,24 @@ final class SavedFlowerDesign {
         set { centerDesignRaw = newValue.rawValue }
     }
 
-    var outerColor: FlowerColor {
-        get { FlowerColor(rawValue: outerColorRaw) ?? .rose }
-        set { outerColorRaw = newValue.rawValue }
+    var outerColor: Color {
+        get { Self.decode(outerColorRaw) }
+        set { outerColorRaw = Self.encode(newValue) }
     }
 
-    var innerColor: FlowerColor {
-        get { FlowerColor(rawValue: innerColorRaw) ?? .terracotta }
-        set { innerColorRaw = newValue.rawValue }
+    var innerColor: Color {
+        get { Self.decode(innerColorRaw) }
+        set { innerColorRaw = Self.encode(newValue) }
     }
 
-    var stamenColor: FlowerColor {
-        get { FlowerColor(rawValue: stamenColorRaw) ?? .golden }
-        set { stamenColorRaw = newValue.rawValue }
+    var stamenColor: Color {
+        get { Self.decode(stamenColorRaw) }
+        set { stamenColorRaw = Self.encode(newValue) }
     }
 
-    var centerColor: FlowerColor {
-        get { FlowerColor(rawValue: centerColorRaw) ?? .sage }
-        set { centerColorRaw = newValue.rawValue }
+    var centerColor: Color {
+        get { Self.decode(centerColorRaw) }
+        set { centerColorRaw = Self.encode(newValue) }
     }
 
     var geometry: FlowerGeometry {

@@ -17,11 +17,15 @@ struct FlowerBuilderView: View {
     @State private var geometry: FlowerGeometry = .default
     @State private var selectedPart: FlowerPart = .outerPetals
 
-    // Save flow state
+    // Inline save naming
+    @State private var isNaming = false
+    @State private var saveName = ""
+
+    // Toast
     @State private var savedConfirmationName: String?
-    @State private var editingDesign: SavedFlowerDesign?
-    @State private var showRenameAlert = false
-    @State private var renameName = ""
+
+    // Clear all
+    @State private var showClearAllAlert = false
 
     var body: some View {
         ScrollView {
@@ -36,7 +40,8 @@ struct FlowerBuilderView: View {
                     innerColor: innerColor,
                     stamenColor: stamenColorChoice,
                     centerColor: centerColor,
-                    geometry: geometry
+                    geometry: geometry,
+                    isAnimating: !isNaming && !showClearAllAlert
                 )
                 .frame(height: 300)
                 .frame(maxWidth: .infinity)
@@ -45,75 +50,11 @@ struct FlowerBuilderView: View {
                 .padding(.horizontal, AppTheme.Spacing.md)
 
                 // Preset selector
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AppTheme.Spacing.sm) {
-                        ForEach(FlowerPreset.allCases) { preset in
-                            Button {
-                                applyPreset(preset)
-                            } label: {
-                                HStack(spacing: AppTheme.Spacing.xs) {
-                                    Image(systemName: preset.icon)
-                                        .font(.caption)
-                                    Text(preset.displayName)
-                                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                                }
-                                .foregroundStyle(preset.accentColor)
-                                .padding(.horizontal, AppTheme.Spacing.sm)
-                                .padding(.vertical, AppTheme.Spacing.xs)
-                                .background(
-                                    Capsule()
-                                        .fill(preset.accentColor.opacity(0.1))
-                                )
-                            }
-                        }
-                    }
-                    .padding(.horizontal, AppTheme.Spacing.md)
-                }
+                presetRow
 
                 // My Flowers section
                 if !savedDesigns.isEmpty {
-                    VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-                        Text("My Flowers")
-                            .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                            .foregroundStyle(Color.appSoftBrown.opacity(0.6))
-                            .padding(.horizontal, AppTheme.Spacing.md)
-
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: AppTheme.Spacing.sm) {
-                                ForEach(savedDesigns) { design in
-                                    Button {
-                                        loadDesign(design)
-                                    } label: {
-                                        Text(design.name)
-                                            .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                                            .foregroundStyle(design.outerColor.color)
-                                            .padding(.horizontal, AppTheme.Spacing.sm)
-                                            .padding(.vertical, AppTheme.Spacing.xs)
-                                            .background(
-                                                Capsule()
-                                                    .fill(design.outerColor.color.opacity(0.1))
-                                            )
-                                    }
-                                    .contextMenu {
-                                        Button {
-                                            editingDesign = design
-                                            renameName = design.name
-                                            showRenameAlert = true
-                                        } label: {
-                                            Label("Rename", systemImage: "pencil")
-                                        }
-                                        Button(role: .destructive) {
-                                            modelContext.delete(design)
-                                            try? modelContext.save()
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, AppTheme.Spacing.md)
-                        }
-                    }
+                    myFlowersSection
                 }
 
                 // Part selector
@@ -131,19 +72,44 @@ struct FlowerBuilderView: View {
                 Group {
                     switch selectedPart {
                     case .outerPetals:
-                        FlowerPartPicker(
-                            part: .outerPetals,
-                            selection: $outerDesign,
-                            colorSelection: $outerColor,
-                            displayName: \.displayName
-                        )
+                        VStack(spacing: AppTheme.Spacing.sm) {
+                            FlowerPartPicker(
+                                part: .outerPetals,
+                                selection: $outerDesign,
+                                colorSelection: $outerColor,
+                                displayName: \.displayName
+                            )
+                            petalCountSlider(
+                                label: "Petals",
+                                count: Binding(
+                                    get: { geometry.outerCount },
+                                    set: { newValue in
+                                        geometry.outerCount = newValue
+                                        geometry.backCount = max(newValue - 2, 0)
+                                    }
+                                ),
+                                range: 3...30,
+                                accent: FlowerPart.outerPetals.accentColor
+                            )
+                        }
                     case .innerPetals:
-                        FlowerPartPicker(
-                            part: .innerPetals,
-                            selection: $innerDesign,
-                            colorSelection: $innerColor,
-                            displayName: \.displayName
-                        )
+                        VStack(spacing: AppTheme.Spacing.sm) {
+                            FlowerPartPicker(
+                                part: .innerPetals,
+                                selection: $innerDesign,
+                                colorSelection: $innerColor,
+                                displayName: \.displayName
+                            )
+                            petalCountSlider(
+                                label: "Petals",
+                                count: Binding(
+                                    get: { geometry.innerCount },
+                                    set: { geometry.innerCount = $0 }
+                                ),
+                                range: 0...20,
+                                accent: FlowerPart.innerPetals.accentColor
+                            )
+                        }
                     case .stamen:
                         FlowerPartPicker(
                             part: .stamen,
@@ -163,35 +129,55 @@ struct FlowerBuilderView: View {
                 .padding(.horizontal, AppTheme.Spacing.md)
                 .animation(AppTheme.gentleAnimation, value: selectedPart)
 
-                // Action buttons
-                HStack(spacing: AppTheme.Spacing.md) {
-                    GentleOutlineButton("Randomize") {
-                        withAnimation(AppTheme.gentleAnimation) {
-                            outerDesign = OuterPetalDesign.allCases.randomElement()!
-                            innerDesign = InnerPetalDesign.allCases.randomElement()!
-                            stamenDesign = StamenDesign.allCases.randomElement()!
-                            centerDesign = CenterDesign.allCases.randomElement()!
-                            outerColor = FlowerColor.allCases.randomElement()!.color
-                            innerColor = FlowerColor.allCases.randomElement()!.color
-                            stamenColorChoice = FlowerColor.allCases.randomElement()!.color
-                            centerColor = FlowerColor.allCases.randomElement()!.color
-                            geometry = .default
+                // Action buttons / inline save
+                if isNaming {
+                    InlineFlowerNameField(
+                        initialName: saveName,
+                        onSave: { name in
+                            saveName = name
+                            confirmSave()
+                        },
+                        onCancel: {
+                            withAnimation(AppTheme.gentleAnimation) {
+                                isNaming = false
+                            }
+                        }
+                    )
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                } else {
+                    HStack(spacing: AppTheme.Spacing.md) {
+                        GentleOutlineButton("Randomize") {
+                            withAnimation(AppTheme.gentleAnimation) {
+                                outerDesign = OuterPetalDesign.allCases.randomElement()!
+                                innerDesign = InnerPetalDesign.allCases.randomElement()!
+                                stamenDesign = StamenDesign.allCases.randomElement()!
+                                centerDesign = CenterDesign.allCases.randomElement()!
+                                outerColor = FlowerColor.allCases.randomElement()!.color
+                                innerColor = FlowerColor.allCases.randomElement()!.color
+                                stamenColorChoice = FlowerColor.allCases.randomElement()!.color
+                                centerColor = FlowerColor.allCases.randomElement()!.color
+                                geometry = .default
+                            }
+                        }
+
+                        Button {
+                            saveName = generateAutoName()
+                            withAnimation(AppTheme.gentleAnimation) {
+                                isNaming = true
+                            }
+                        } label: {
+                            Text("Save Flower")
+                                .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, AppTheme.Spacing.lg)
+                                .padding(.vertical, AppTheme.Spacing.md)
+                                .background(Color.appRose)
+                                .clipShape(Capsule())
                         }
                     }
-
-                    Button {
-                        saveFlowerDirectly()
-                    } label: {
-                        Text("Save Flower")
-                            .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, AppTheme.Spacing.lg)
-                            .padding(.vertical, AppTheme.Spacing.md)
-                            .background(Color.appRose)
-                            .clipShape(Capsule())
-                    }
                 }
-                .padding(.bottom, AppTheme.Spacing.lg)
+                Spacer().frame(height: AppTheme.Spacing.lg)
             }
             .padding(.top, AppTheme.Spacing.md)
         }
@@ -211,19 +197,125 @@ struct FlowerBuilderView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .alert("Rename Flower", isPresented: $showRenameAlert) {
-            TextField("Name", text: $renameName)
-            Button("Cancel", role: .cancel) {
-                editingDesign = nil
-            }
-            Button("Save") {
-                if let design = editingDesign, !renameName.trimmingCharacters(in: .whitespaces).isEmpty {
-                    design.name = renameName.trimmingCharacters(in: .whitespaces)
-                    try? modelContext.save()
+        .alert("Clear All Flowers?", isPresented: $showClearAllAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Clear All", role: .destructive) {
+                for design in savedDesigns {
+                    modelContext.delete(design)
                 }
-                editingDesign = nil
+                try? modelContext.save()
+            }
+        } message: {
+            Text("This will delete all \(savedDesigns.count) saved flowers.")
+        }
+    }
+
+    // MARK: - Preset Row
+
+    private var presetRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                ForEach(FlowerPreset.allCases) { preset in
+                    Button {
+                        applyPreset(preset)
+                    } label: {
+                        HStack(spacing: AppTheme.Spacing.xs) {
+                            Image(systemName: preset.icon)
+                                .font(.caption)
+                            Text(preset.displayName)
+                                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                        }
+                        .foregroundStyle(preset.accentColor)
+                        .padding(.horizontal, AppTheme.Spacing.sm)
+                        .padding(.vertical, AppTheme.Spacing.xs)
+                        .background(
+                            Capsule()
+                                .fill(preset.accentColor.opacity(0.1))
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, AppTheme.Spacing.md)
+        }
+    }
+
+    // MARK: - My Flowers Section
+
+    private var myFlowersSection: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
+            HStack {
+                Text("My Flowers")
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+                Spacer()
+                Button {
+                    showClearAllAlert = true
+                } label: {
+                    Text("Clear All")
+                        .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.4))
+                }
+            }
+            .padding(.horizontal, AppTheme.Spacing.md)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    ForEach(savedDesigns) { design in
+                        HStack(spacing: 4) {
+                            Button {
+                                loadDesign(design)
+                            } label: {
+                                Text(design.name)
+                                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                                    .foregroundStyle(design.outerColor)
+                            }
+
+                            Button {
+                                modelContext.delete(design)
+                                try? modelContext.save()
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(design.outerColor.opacity(0.4))
+                            }
+                        }
+                        .padding(.horizontal, AppTheme.Spacing.sm)
+                        .padding(.vertical, AppTheme.Spacing.xs)
+                        .background(
+                            Capsule()
+                                .fill(design.outerColor.opacity(0.1))
+                        )
+                    }
+                }
+                .padding(.horizontal, AppTheme.Spacing.md)
             }
         }
+    }
+
+    // MARK: - Petal Count Slider
+
+    private func petalCountSlider(label: String, count: Binding<Int>, range: ClosedRange<Int>, accent: Color) -> some View {
+        HStack(spacing: AppTheme.Spacing.sm) {
+            Text(label)
+                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+
+            Slider(
+                value: Binding(
+                    get: { Double(count.wrappedValue) },
+                    set: { count.wrappedValue = Int($0.rounded()) }
+                ),
+                in: Double(range.lowerBound)...Double(range.upperBound),
+                step: 1
+            )
+            .tint(accent)
+
+            Text("\(count.wrappedValue)")
+                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .semibold))
+                .foregroundStyle(accent)
+                .frame(width: 28, alignment: .trailing)
+        }
+        .warmCard()
     }
 
     // MARK: - Actions
@@ -248,21 +340,22 @@ struct FlowerBuilderView: View {
             innerDesign = design.innerDesign
             stamenDesign = design.stamenDesign
             centerDesign = design.centerDesign
-            outerColor = design.outerColor.color
-            innerColor = design.innerColor.color
-            stamenColorChoice = design.stamenColor.color
-            centerColor = design.centerColor.color
+            outerColor = design.outerColor
+            innerColor = design.innerColor
+            stamenColorChoice = design.stamenColor
+            centerColor = design.centerColor
             geometry = design.geometry
         }
     }
 
-    private func saveFlowerDirectly() {
-        let name = generateAutoName()
+    private func confirmSave() {
+        let trimmed = saveName.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let name = trimmed
 
-        let closestOuter = FlowerColor.closest(to: outerColor)
-        let closestInner = FlowerColor.closest(to: innerColor)
-        let closestStamen = FlowerColor.closest(to: stamenColorChoice)
-        let closestCenter = FlowerColor.closest(to: centerColor)
+        withAnimation(AppTheme.gentleAnimation) {
+            isNaming = false
+        }
 
         let design = SavedFlowerDesign(
             name: name,
@@ -270,10 +363,10 @@ struct FlowerBuilderView: View {
             innerDesign: innerDesign,
             stamenDesign: stamenDesign,
             centerDesign: centerDesign,
-            outerColor: closestOuter,
-            innerColor: closestInner,
-            stamenColor: closestStamen,
-            centerColor: closestCenter,
+            outerColor: outerColor,
+            innerColor: innerColor,
+            stamenColor: stamenColorChoice,
+            centerColor: centerColor,
             geometry: geometry
         )
         modelContext.insert(design)
@@ -293,7 +386,6 @@ struct FlowerBuilderView: View {
     // MARK: - Auto Name Generation
 
     private func generateAutoName() -> String {
-        // Check if current design matches a preset
         let matchedPreset = FlowerPreset.allCases.first { preset in
             preset.outerDesign == outerDesign &&
             preset.innerDesign == innerDesign &&
@@ -311,7 +403,6 @@ struct FlowerBuilderView: View {
             baseName = "\(outerDesign.displayName) \(closestColor.displayName) Bloom"
         }
 
-        // Deduplicate against existing saved designs
         let existingNames = Set(savedDesigns.map(\.name))
         if !existingNames.contains(baseName) {
             return baseName
@@ -322,5 +413,65 @@ struct FlowerBuilderView: View {
             counter += 1
         }
         return "\(baseName) \(counter)"
+    }
+}
+
+// MARK: - Isolated Name Field (keystrokes don't re-render parent)
+
+private struct InlineFlowerNameField: View {
+    let initialName: String
+    var onSave: (String) -> Void
+    var onCancel: () -> Void
+
+    @State private var name: String = ""
+
+    var body: some View {
+        VStack(spacing: AppTheme.Spacing.sm) {
+            Text("Name Your Flower")
+                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+
+            TextField("Flower name", text: $name)
+                .font(.system(.body, design: AppTheme.fontFamily))
+                .textFieldStyle(.roundedBorder)
+                .onSubmit {
+                    if !name.trimmingCharacters(in: .whitespaces).isEmpty {
+                        onSave(name)
+                    }
+                }
+
+            HStack(spacing: AppTheme.Spacing.md) {
+                Button {
+                    onCancel()
+                } label: {
+                    Text("Cancel")
+                        .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
+                        .foregroundStyle(Color.appSoftBrown)
+                        .padding(.horizontal, AppTheme.Spacing.lg)
+                        .padding(.vertical, AppTheme.Spacing.md)
+                        .background(
+                            Capsule()
+                                .strokeBorder(Color.appSoftBrown.opacity(0.3), lineWidth: 1)
+                        )
+                }
+
+                Button {
+                    onSave(name)
+                } label: {
+                    Text("Save")
+                        .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, AppTheme.Spacing.lg)
+                        .padding(.vertical, AppTheme.Spacing.md)
+                        .background(name.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray : Color.appRose)
+                        .clipShape(Capsule())
+                }
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .warmCard()
+        .onAppear {
+            name = initialName
+        }
     }
 }

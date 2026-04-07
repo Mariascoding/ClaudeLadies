@@ -1433,19 +1433,26 @@ private struct SpiralShape: Shape {
 extension OuterPetalDesign {
     @ViewBuilder
     func shape(in size: CGSize, color: Color) -> some View {
+        let strokeStyle = Color.black.opacity(0.35)
+        let strokeWidth: CGFloat = 0.5
+
         switch self {
         case .classic:
             ClassicPetalShape().fill(color)
+                .overlay(ClassicPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
         case .dahlia:
             DahliaPetalShape().fill(color)
+                .overlay(DahliaPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
         case .peony:
             PeonyPetalShape().fill(color)
+                .overlay(PeonyPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
         case .heartleaf:
             ZStack {
                 HeartleafPetalShape().fill(color)
+                    .overlay(HeartleafPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                     .frame(width: size.width, height: size.height)
                 HeartleafVeinShape()
                     .stroke(color.opacity(0.4), lineWidth: 1)
@@ -1453,10 +1460,12 @@ extension OuterPetalDesign {
             }
         case .cosmos:
             CosmosPetalShape().fill(color)
+                .overlay(CosmosPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
         case .round:
             ZStack {
                 RoundPetalShape().fill(color)
+                    .overlay(RoundPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                     .frame(width: size.width, height: size.height)
                 RoundPetalVeinShape()
                     .stroke(
@@ -1476,21 +1485,29 @@ extension OuterPetalDesign {
 extension InnerPetalDesign {
     @ViewBuilder
     func shape(in size: CGSize, color: Color) -> some View {
+        let strokeStyle = Color.black.opacity(0.35)
+        let strokeWidth: CGFloat = 0.5
+
         switch self {
         case .tulip:
             TulipPetalShape().fill(color)
+                .overlay(TulipPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
         case .star:
             StarPetalShape().fill(color)
+                .overlay(StarPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
         case .bell:
             BellPetalShape().fill(color)
+                .overlay(BellPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
         case .feather:
             FeatherPetalShape().fill(color)
+                .overlay(FeatherPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
         case .lotus:
             LotusPetalShape().fill(color)
+                .overlay(LotusPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
         }
     }

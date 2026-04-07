@@ -10,8 +10,7 @@ struct FlowerBuilderCanvas: View {
     @State private var dancePhase: CGFloat = 0
     @State private var colorPhase: CGFloat = 0
     @State private var appeared: Bool = false
-
-    private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+    @State private var animationTask: Task<Void, Never>?
 
     // Colors
     let outerColor: Color
@@ -20,6 +19,7 @@ struct FlowerBuilderCanvas: View {
     let centerColor: Color
 
     var geometry: FlowerGeometry = .default
+    var isAnimating: Bool = true
 
     var body: some View {
         GeometryReader { geo in
@@ -40,18 +40,25 @@ struct FlowerBuilderCanvas: View {
             withAnimation(.spring(response: 0.8, dampingFraction: 0.65)) {
                 appeared = true
             }
+            if isAnimating { startAnimating() }
+        }
+        .onDisappear {
+            animationTask?.cancel()
+            animationTask = nil
+        }
+        .onChange(of: isAnimating) { _, animating in
+            if animating {
+                startAnimating()
+            } else {
+                animationTask?.cancel()
+                animationTask = nil
+            }
         }
         .onChange(of: outerDesign) { _, _ in retriggerGrowth() }
         .onChange(of: innerDesign) { _, _ in retriggerGrowth() }
         .onChange(of: stamenDesign) { _, _ in retriggerGrowth() }
         .onChange(of: centerDesign) { _, _ in retriggerGrowth() }
         .onChange(of: geometry) { _, _ in retriggerGrowth() }
-        .onReceive(timer) { _ in
-            let dt = 1.0 / 30.0
-            breathPhase += dt * 1.2
-            dancePhase += dt * 0.6
-            colorPhase += dt * 0.15
-        }
     }
 
     // MARK: - Animated Layer Wrappers
@@ -255,6 +262,20 @@ struct FlowerBuilderCanvas: View {
     }
 
     // MARK: - Helpers
+
+    private func startAnimating() {
+        animationTask?.cancel()
+        animationTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(33))
+                guard !Task.isCancelled else { break }
+                let dt: CGFloat = 1.0 / 30.0
+                breathPhase += dt * 1.2
+                dancePhase += dt * 0.6
+                colorPhase += dt * 0.15
+            }
+        }
+    }
 
     private func retriggerGrowth() {
         appeared = false
