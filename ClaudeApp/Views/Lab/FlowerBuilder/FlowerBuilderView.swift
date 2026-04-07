@@ -21,6 +21,9 @@ struct FlowerBuilderView: View {
     @State private var isNaming = false
     @State private var saveName = ""
 
+    // Inline rename
+    @State private var renamingDesign: SavedFlowerDesign?
+
     // Toast
     @State private var savedConfirmationName: String?
 
@@ -41,7 +44,7 @@ struct FlowerBuilderView: View {
                     stamenColor: stamenColorChoice,
                     centerColor: centerColor,
                     geometry: geometry,
-                    isAnimating: !isNaming && !showClearAllAlert
+                    isAnimating: !isNaming && renamingDesign == nil && !showClearAllAlert
                 )
                 .frame(height: 300)
                 .frame(maxWidth: .infinity)
@@ -258,36 +261,67 @@ struct FlowerBuilderView: View {
             }
             .padding(.horizontal, AppTheme.Spacing.md)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: AppTheme.Spacing.sm) {
-                    ForEach(savedDesigns) { design in
-                        HStack(spacing: 4) {
-                            Button {
-                                loadDesign(design)
-                            } label: {
-                                Text(design.name)
-                                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                                    .foregroundStyle(design.outerColor)
-                            }
-
-                            Button {
-                                modelContext.delete(design)
-                                try? modelContext.save()
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 9, weight: .bold))
-                                    .foregroundStyle(design.outerColor.opacity(0.4))
-                            }
+            // Inline rename field (replaces pill list while renaming)
+            if let design = renamingDesign {
+                InlineFlowerNameField(
+                    initialName: design.name,
+                    title: "Rename Flower",
+                    onSave: { newName in
+                        design.name = newName
+                        try? modelContext.save()
+                        withAnimation(AppTheme.gentleAnimation) {
+                            renamingDesign = nil
                         }
-                        .padding(.horizontal, AppTheme.Spacing.sm)
-                        .padding(.vertical, AppTheme.Spacing.xs)
-                        .background(
-                            Capsule()
-                                .fill(design.outerColor.opacity(0.1))
-                        )
+                    },
+                    onCancel: {
+                        withAnimation(AppTheme.gentleAnimation) {
+                            renamingDesign = nil
+                        }
                     }
-                }
+                )
                 .padding(.horizontal, AppTheme.Spacing.md)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: AppTheme.Spacing.sm) {
+                        ForEach(savedDesigns) { design in
+                            HStack(spacing: 4) {
+                                Button {
+                                    loadDesign(design)
+                                } label: {
+                                    Text(design.name)
+                                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                                        .foregroundStyle(design.outerColor)
+                                }
+
+                                Button {
+                                    withAnimation(AppTheme.gentleAnimation) {
+                                        renamingDesign = design
+                                    }
+                                } label: {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(design.outerColor.opacity(0.6))
+                                }
+
+                                Button {
+                                    modelContext.delete(design)
+                                    try? modelContext.save()
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundStyle(design.outerColor.opacity(0.4))
+                                }
+                            }
+                            .padding(.horizontal, AppTheme.Spacing.sm)
+                            .padding(.vertical, AppTheme.Spacing.xs)
+                            .background(
+                                Capsule()
+                                    .fill(design.outerColor.opacity(0.1))
+                            )
+                        }
+                    }
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                }
             }
         }
     }
@@ -420,6 +454,7 @@ struct FlowerBuilderView: View {
 
 private struct InlineFlowerNameField: View {
     let initialName: String
+    var title: String = "Name Your Flower"
     var onSave: (String) -> Void
     var onCancel: () -> Void
 
@@ -427,7 +462,7 @@ private struct InlineFlowerNameField: View {
 
     var body: some View {
         VStack(spacing: AppTheme.Spacing.sm) {
-            Text("Name Your Flower")
+            Text(title)
                 .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                 .foregroundStyle(Color.appSoftBrown.opacity(0.6))
 
