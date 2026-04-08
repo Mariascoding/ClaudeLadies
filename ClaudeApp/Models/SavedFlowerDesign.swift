@@ -28,6 +28,11 @@ final class SavedFlowerDesign {
     var innerWidth: Double
     var centerScale: Double
     var stamenScale: Double
+    var outerGradientStrength: Double = 0
+    var innerGradientStrength: Double = 0
+
+    // Per-petal color overrides — JSON-encoded [String: String] where values are "R,G,B"
+    var petalColorsRaw: String = ""
 
     init(
         name: String,
@@ -39,7 +44,8 @@ final class SavedFlowerDesign {
         innerColor: Color,
         stamenColor: Color,
         centerColor: Color,
-        geometry: FlowerGeometry
+        geometry: FlowerGeometry,
+        petalColors: [String: Color] = [:]
     ) {
         self.name = name
         self.createdDate = Date()
@@ -58,6 +64,9 @@ final class SavedFlowerDesign {
         self.innerWidth = Double(geometry.innerWidth)
         self.centerScale = Double(geometry.centerScale)
         self.stamenScale = Double(geometry.stamenScale)
+        self.outerGradientStrength = Double(geometry.outerGradientStrength)
+        self.innerGradientStrength = Double(geometry.innerGradientStrength)
+        self.petalColorOverrides = petalColors
     }
 
     // MARK: - Color Encoding
@@ -130,7 +139,40 @@ final class SavedFlowerDesign {
             petalWidth: CGFloat(petalWidth),
             innerWidth: CGFloat(innerWidth),
             centerScale: CGFloat(centerScale),
-            stamenScale: CGFloat(stamenScale)
+            stamenScale: CGFloat(stamenScale),
+            outerGradientStrength: CGFloat(outerGradientStrength),
+            innerGradientStrength: CGFloat(innerGradientStrength)
         )
+    }
+
+    // MARK: - Per-Petal Color Overrides
+
+    var petalColorOverrides: [String: Color] {
+        get {
+            guard !petalColorsRaw.isEmpty,
+                  let data = petalColorsRaw.data(using: .utf8),
+                  let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
+                return [:]
+            }
+            var result: [String: Color] = [:]
+            for (key, value) in dict {
+                result[key] = Self.decode(value)
+            }
+            return result
+        }
+        set {
+            if newValue.isEmpty {
+                petalColorsRaw = ""
+                return
+            }
+            var dict: [String: String] = [:]
+            for (key, color) in newValue {
+                dict[key] = Self.encode(color)
+            }
+            if let data = try? JSONEncoder().encode(dict),
+               let json = String(data: data, encoding: .utf8) {
+                petalColorsRaw = json
+            }
+        }
     }
 }

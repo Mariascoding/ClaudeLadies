@@ -30,6 +30,14 @@ struct FlowerBuilderView: View {
     // Clear all
     @State private var showClearAllAlert = false
 
+    // Paint mode
+    @State private var isPaintMode = false
+    @State private var petalColors: [String: Color] = [:]
+    @State private var activePaintColor: Color = .appRose
+    @State private var paintHistory: [(key: String, oldColor: Color?)] = []
+    // Per-petal tap cycle: tracks phase (1=painted, 2=at previous, 3=at base) and what color it had before painting
+    @State private var petalTapPhase: [String: (phase: Int, previousColor: Color?)] = [:]
+
     var body: some View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.lg) {
@@ -44,12 +52,33 @@ struct FlowerBuilderView: View {
                     stamenColor: stamenColorChoice,
                     centerColor: centerColor,
                     geometry: geometry,
-                    isAnimating: !isNaming && renamingDesign == nil && !showClearAllAlert
+                    isAnimating: !isNaming && renamingDesign == nil && !showClearAllAlert && !isPaintMode,
+                    isPaintMode: isPaintMode,
+                    petalColors: petalColors,
+                    selectedPart: selectedPart,
+                    onPetalTap: { key in
+                        withAnimation(AppTheme.gentleAnimation) {
+                            handlePetalTap(key: key)
+                        }
+                    }
                 )
                 .frame(height: 300)
                 .frame(maxWidth: .infinity)
-                .allowsHitTesting(false)
+                .allowsHitTesting(isPaintMode)
                 .warmCard()
+                .overlay(alignment: .topTrailing) {
+                    if isPaintMode {
+                        Text("Tap a petal")
+                            .font(.system(.caption2, design: AppTheme.fontFamily, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.appRose.opacity(0.8))
+                            .clipShape(Capsule())
+                            .padding(AppTheme.Spacing.sm)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .padding(.horizontal, AppTheme.Spacing.md)
 
                 // Preset selector
@@ -80,7 +109,9 @@ struct FlowerBuilderView: View {
                                 part: .outerPetals,
                                 selection: $outerDesign,
                                 colorSelection: $outerColor,
-                                displayName: \.displayName
+                                displayName: \.displayName,
+                                isPaintMode: $isPaintMode,
+                                paintColor: $activePaintColor
                             )
                             petalCountSlider(
                                 label: "Petals",
@@ -94,6 +125,11 @@ struct FlowerBuilderView: View {
                                 range: 3...30,
                                 accent: FlowerPart.outerPetals.accentColor
                             )
+                            gradientSlider(
+                                label: "Opacity Gradient",
+                                value: $geometry.outerGradientStrength,
+                                accent: FlowerPart.outerPetals.accentColor
+                            )
                         }
                     case .innerPetals:
                         VStack(spacing: AppTheme.Spacing.sm) {
@@ -101,7 +137,9 @@ struct FlowerBuilderView: View {
                                 part: .innerPetals,
                                 selection: $innerDesign,
                                 colorSelection: $innerColor,
-                                displayName: \.displayName
+                                displayName: \.displayName,
+                                isPaintMode: $isPaintMode,
+                                paintColor: $activePaintColor
                             )
                             petalCountSlider(
                                 label: "Petals",
@@ -110,6 +148,11 @@ struct FlowerBuilderView: View {
                                     set: { geometry.innerCount = $0 }
                                 ),
                                 range: 0...20,
+                                accent: FlowerPart.innerPetals.accentColor
+                            )
+                            gradientSlider(
+                                label: "Opacity Gradient",
+                                value: $geometry.innerGradientStrength,
                                 accent: FlowerPart.innerPetals.accentColor
                             )
                         }
@@ -149,34 +192,44 @@ struct FlowerBuilderView: View {
                     .padding(.horizontal, AppTheme.Spacing.md)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 } else {
-                    HStack(spacing: AppTheme.Spacing.md) {
-                        GentleOutlineButton("Randomize") {
-                            withAnimation(AppTheme.gentleAnimation) {
-                                outerDesign = OuterPetalDesign.allCases.randomElement()!
-                                innerDesign = InnerPetalDesign.allCases.randomElement()!
-                                stamenDesign = StamenDesign.allCases.randomElement()!
-                                centerDesign = CenterDesign.allCases.randomElement()!
-                                outerColor = FlowerColor.allCases.randomElement()!.color
-                                innerColor = FlowerColor.allCases.randomElement()!.color
-                                stamenColorChoice = FlowerColor.allCases.randomElement()!.color
-                                centerColor = FlowerColor.allCases.randomElement()!.color
-                                geometry = .default
+                    VStack(spacing: AppTheme.Spacing.sm) {
+                        HStack(spacing: AppTheme.Spacing.md) {
+                            GentleOutlineButton("Randomize") {
+                                withAnimation(AppTheme.gentleAnimation) {
+                                    outerDesign = OuterPetalDesign.allCases.randomElement()!
+                                    innerDesign = InnerPetalDesign.allCases.randomElement()!
+                                    stamenDesign = StamenDesign.allCases.randomElement()!
+                                    centerDesign = CenterDesign.allCases.randomElement()!
+                                    outerColor = FlowerColor.allCases.randomElement()!.color
+                                    innerColor = FlowerColor.allCases.randomElement()!.color
+                                    stamenColorChoice = FlowerColor.allCases.randomElement()!.color
+                                    centerColor = FlowerColor.allCases.randomElement()!.color
+                                    geometry = .default
+                                    petalColors = [:]
+                                    paintHistory = []
+                                    petalTapPhase = [:]
+                                }
+                            }
+
+                            Button {
+                                saveName = generateAutoName()
+                                withAnimation(AppTheme.gentleAnimation) {
+                                    isNaming = true
+                                }
+                            } label: {
+                                Text("Save Flower")
+                                    .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, AppTheme.Spacing.lg)
+                                    .padding(.vertical, AppTheme.Spacing.md)
+                                    .background(Color.appRose)
+                                    .clipShape(Capsule())
                             }
                         }
 
-                        Button {
-                            saveName = generateAutoName()
-                            withAnimation(AppTheme.gentleAnimation) {
-                                isNaming = true
-                            }
-                        } label: {
-                            Text("Save Flower")
-                                .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, AppTheme.Spacing.lg)
-                                .padding(.vertical, AppTheme.Spacing.md)
-                                .background(Color.appRose)
-                                .clipShape(Capsule())
+                        // Paint mode hint + clear
+                        if isPaintMode {
+                            paintHintBar
                         }
                     }
                 }
@@ -210,6 +263,13 @@ struct FlowerBuilderView: View {
             }
         } message: {
             Text("This will delete all \(savedDesigns.count) saved flowers.")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .deviceDidShake)) { _ in
+            if isPaintMode && !paintHistory.isEmpty {
+                withAnimation(AppTheme.gentleAnimation) {
+                    undoLastPaint()
+                }
+            }
         }
     }
 
@@ -352,7 +412,130 @@ struct FlowerBuilderView: View {
         .warmCard()
     }
 
+    // MARK: - Gradient Slider
+
+    private func gradientSlider(label: String, value: Binding<CGFloat>, accent: Color) -> some View {
+        HStack(spacing: AppTheme.Spacing.sm) {
+            Text(label)
+                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+
+            Slider(
+                value: Binding(
+                    get: { Double(value.wrappedValue) },
+                    set: { value.wrappedValue = CGFloat($0) }
+                ),
+                in: 0...1
+            )
+            .tint(accent)
+
+            Text("\(Int(value.wrappedValue * 100))%")
+                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .semibold))
+                .foregroundStyle(accent)
+                .frame(width: 40, alignment: .trailing)
+        }
+        .warmCard()
+    }
+
+    // MARK: - Paint Hint Bar
+
+    private var paintHintBar: some View {
+        HStack(spacing: AppTheme.Spacing.sm) {
+            Circle()
+                .fill(activePaintColor)
+                .frame(width: 16, height: 16)
+                .overlay(Circle().strokeBorder(Color.appSoftBrown.opacity(0.2), lineWidth: 0.5))
+
+            Text("Tap petals to paint")
+                .font(.system(.caption, design: AppTheme.fontFamily))
+                .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+
+            Spacer()
+
+            if !paintHistory.isEmpty {
+                Button {
+                    withAnimation(AppTheme.gentleAnimation) {
+                        undoLastPaint()
+                    }
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(.caption, weight: .medium))
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+                }
+            }
+
+            if !petalColors.isEmpty {
+                Button {
+                    withAnimation(AppTheme.gentleAnimation) {
+                        petalColors = [:]
+                        paintHistory = []
+                        petalTapPhase = [:]
+                    }
+                } label: {
+                    Text("Clear Paint")
+                        .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
+                        .foregroundStyle(Color.appRose.opacity(0.7))
+                }
+            }
+        }
+        .padding(.horizontal, AppTheme.Spacing.md)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
     // MARK: - Actions
+
+    /// Compares two Colors by resolved RGB components (Color == is unreliable).
+    private func colorsMatch(_ a: Color, _ b: Color) -> Bool {
+        let ra = a.resolve(in: EnvironmentValues())
+        let rb = b.resolve(in: EnvironmentValues())
+        return abs(ra.red - rb.red) < 0.01
+            && abs(ra.green - rb.green) < 0.01
+            && abs(ra.blue - rb.blue) < 0.01
+    }
+
+    private func handlePetalTap(key: String) {
+        if let info = petalTapPhase[key] {
+            switch info.phase {
+            case 1:
+                // Tap 2: revert to previous color
+                if let prev = info.previousColor {
+                    petalColors[key] = prev
+                } else {
+                    petalColors.removeValue(forKey: key)
+                }
+                petalTapPhase[key] = (phase: 2, previousColor: info.previousColor)
+
+            case 2:
+                // Tap 3: revert to base (remove all paint)
+                petalColors.removeValue(forKey: key)
+                petalTapPhase[key] = (phase: 3, previousColor: nil)
+
+            default:
+                // Tap 4+: paint again, restart cycle
+                let current = petalColors[key]
+                paintHistory.append((key: key, oldColor: current))
+                petalColors[key] = activePaintColor
+                petalTapPhase[key] = (phase: 1, previousColor: current)
+            }
+        } else {
+            // Tap 1: first paint on this petal
+            let current = petalColors[key]
+            paintHistory.append((key: key, oldColor: current))
+            petalColors[key] = activePaintColor
+            petalTapPhase[key] = (phase: 1, previousColor: current)
+        }
+    }
+
+    private func undoLastPaint() {
+        guard let last = paintHistory.popLast() else { return }
+        if let oldColor = last.oldColor {
+            petalColors[last.key] = oldColor
+        } else {
+            petalColors.removeValue(forKey: last.key)
+        }
+        // Reset tap cycle for that petal so it doesn't get confused
+        petalTapPhase.removeValue(forKey: last.key)
+    }
 
     private func applyPreset(_ preset: FlowerPreset) {
         withAnimation(AppTheme.gentleAnimation) {
@@ -365,6 +548,9 @@ struct FlowerBuilderView: View {
             stamenColorChoice = preset.stamenColor.color
             centerColor = preset.centerColor.color
             geometry = preset.geometry
+            petalColors = [:]
+            paintHistory = []
+            petalTapPhase = [:]
         }
     }
 
@@ -379,6 +565,9 @@ struct FlowerBuilderView: View {
             stamenColorChoice = design.stamenColor
             centerColor = design.centerColor
             geometry = design.geometry
+            petalColors = design.petalColorOverrides
+            paintHistory = []
+            petalTapPhase = [:]
         }
     }
 
@@ -401,7 +590,8 @@ struct FlowerBuilderView: View {
             innerColor: innerColor,
             stamenColor: stamenColorChoice,
             centerColor: centerColor,
-            geometry: geometry
+            geometry: geometry,
+            petalColors: petalColors
         )
         modelContext.insert(design)
         try? modelContext.save()
@@ -507,6 +697,21 @@ private struct InlineFlowerNameField: View {
         .warmCard()
         .onAppear {
             name = initialName
+        }
+    }
+}
+
+// MARK: - Shake-to-Undo Support
+
+extension Notification.Name {
+    static let deviceDidShake = Notification.Name("deviceDidShake")
+}
+
+extension UIWindow {
+    override open func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
+        super.motionEnded(motion, with: event)
+        if motion == .motionShake {
+            NotificationCenter.default.post(name: .deviceDidShake, object: nil)
         }
     }
 }

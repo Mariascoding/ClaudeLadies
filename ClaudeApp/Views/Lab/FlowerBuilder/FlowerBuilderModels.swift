@@ -134,11 +134,14 @@ struct FlowerGeometry: Equatable {
     var innerWidth: CGFloat     // inner petal width-to-height ratio
     var centerScale: CGFloat    // center radius as fraction of total size
     var stamenScale: CGFloat    // stamen radius as fraction of total size
+    var outerGradientStrength: CGFloat  // 0 = uniform, 1 = full fade around circle
+    var innerGradientStrength: CGFloat  // 0 = uniform, 1 = full fade around circle
 
     static let `default` = FlowerGeometry(
         outerCount: 8, backCount: 8, innerCount: 6,
         petalWidth: 0.6, innerWidth: 0.5,
-        centerScale: 0.14, stamenScale: 0.22
+        centerScale: 0.14, stamenScale: 0.22,
+        outerGradientStrength: 0, innerGradientStrength: 0
     )
 }
 
@@ -190,7 +193,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
 
     var outerDesign: OuterPetalDesign {
         switch self {
-        case .rose: .classic
+        case .rose: .rose
         case .lotus: .round       // smooth elliptical petals
         case .dahlia: .dahlia
         case .lily: .peony        // wide tepals with ruffled wavy edges
@@ -203,7 +206,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
 
     var innerDesign: InnerPetalDesign {
         switch self {
-        case .rose: .tulip
+        case .rose: .lotus
         case .lotus: .lotus
         case .dahlia: .star
         case .lily: .bell         // trumpet-shaped inner tepals
@@ -291,45 +294,53 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
     var geometry: FlowerGeometry {
         switch self {
         case .rose:
-            // Dense layered petals, tiny hidden center
-            FlowerGeometry(outerCount: 16, backCount: 14, innerCount: 12,
-                           petalWidth: 0.50, innerWidth: 0.48,
-                           centerScale: 0.06, stamenScale: 0.10)
+            // Dense layered cupped petals, wide smooth shape, tiny hidden center
+            FlowerGeometry(outerCount: 14, backCount: 12, innerCount: 10,
+                           petalWidth: 0.65, innerWidth: 0.58,
+                           centerScale: 0.07, stamenScale: 0.10,
+                           outerGradientStrength: 0, innerGradientStrength: 0)
         case .lotus:
             // Broad smooth petals, visible golden center
             FlowerGeometry(outerCount: 12, backCount: 10, innerCount: 6,
                            petalWidth: 0.65, innerWidth: 0.55,
-                           centerScale: 0.14, stamenScale: 0.18)
+                           centerScale: 0.14, stamenScale: 0.18,
+                           outerGradientStrength: 0, innerGradientStrength: 0)
         case .dahlia:
             // Very dense quilled petals, thicker layering, hidden center
             FlowerGeometry(outerCount: 26, backCount: 24, innerCount: 18,
                            petalWidth: 0.32, innerWidth: 0.28,
-                           centerScale: 0.05, stamenScale: 0.10)
+                           centerScale: 0.05, stamenScale: 0.10,
+                           outerGradientStrength: 0, innerGradientStrength: 0)
         case .lily:
             // 3 outer + 3 inner alternating, wide tepals, huge prominent stamens
             FlowerGeometry(outerCount: 3, backCount: 3, innerCount: 3,
                            petalWidth: 0.70, innerWidth: 0.60,
-                           centerScale: 0.08, stamenScale: 0.30)
+                           centerScale: 0.08, stamenScale: 0.30,
+                           outerGradientStrength: 0, innerGradientStrength: 0)
         case .cosmos:
             // 8 flat ray petals, single open layer, visible center
             FlowerGeometry(outerCount: 8, backCount: 8, innerCount: 0,
                            petalWidth: 0.45, innerWidth: 0.40,
-                           centerScale: 0.16, stamenScale: 0.18)
+                           centerScale: 0.16, stamenScale: 0.18,
+                           outerGradientStrength: 0, innerGradientStrength: 0)
         case .forgetMeNot:
             // 5 broad round petals overlapping closely, corona eye ring
             FlowerGeometry(outerCount: 5, backCount: 0, innerCount: 0,
                            petalWidth: 0.98, innerWidth: 0.60,
-                           centerScale: 0.12, stamenScale: 0.18)
+                           centerScale: 0.12, stamenScale: 0.18,
+                           outerGradientStrength: 0, innerGradientStrength: 0)
         case .peony:
             // Dense ruffled layers, hidden center
             FlowerGeometry(outerCount: 18, backCount: 16, innerCount: 14,
                            petalWidth: 0.58, innerWidth: 0.52,
-                           centerScale: 0.06, stamenScale: 0.12)
+                           centerScale: 0.06, stamenScale: 0.12,
+                           outerGradientStrength: 0, innerGradientStrength: 0)
         case .sunflower:
             // Multi-layered ray petals around a massive dark seed disc
             FlowerGeometry(outerCount: 28, backCount: 24, innerCount: 16,
                            petalWidth: 0.45, innerWidth: 0.35,
-                           centerScale: 0.32, stamenScale: 0.18)
+                           centerScale: 0.32, stamenScale: 0.18,
+                           outerGradientStrength: 0, innerGradientStrength: 0)
         }
     }
 }
@@ -338,6 +349,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
 
 enum OuterPetalDesign: String, CaseIterable, Identifiable {
     case classic
+    case rose
     case dahlia
     case peony
     case heartleaf
@@ -349,6 +361,7 @@ enum OuterPetalDesign: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .classic: "Classic"
+        case .rose: "Rose"
         case .dahlia: "Dahlia"
         case .peony: "Peony"
         case .heartleaf: "Heartleaf"
@@ -384,6 +397,7 @@ enum InnerPetalDesign: String, CaseIterable, Identifiable {
 
 enum StamenDesign: String, CaseIterable, Identifiable {
     case dewdrops
+    case fairyDust
     case sunburst
     case tendrils
     case pollenCloud
@@ -395,6 +409,7 @@ enum StamenDesign: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .dewdrops: "Dewdrops"
+        case .fairyDust: "Fairy Dust"
         case .sunburst: "Sunburst"
         case .tendrils: "Tendrils"
         case .pollenCloud: "Pollen Cloud"

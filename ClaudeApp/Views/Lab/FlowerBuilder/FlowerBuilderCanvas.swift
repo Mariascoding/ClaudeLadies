@@ -21,6 +21,12 @@ struct FlowerBuilderCanvas: View {
     var geometry: FlowerGeometry = .default
     var isAnimating: Bool = true
 
+    // Paint mode
+    var isPaintMode: Bool = false
+    var petalColors: [String: Color] = [:]
+    var selectedPart: FlowerPart = .outerPetals
+    var onPetalTap: ((String) -> Void)? = nil
+
     var body: some View {
         GeometryReader { geo in
             let size = min(geo.size.width, geo.size.height)
@@ -35,6 +41,26 @@ struct FlowerBuilderCanvas: View {
                 animatedCenter(size: size, center: center)
             }
             .scaleEffect(breathScale)
+            .allowsHitTesting(false)
+
+            // Paint mode: transparent overlay captures taps and routes to nearest petal
+            if isPaintMode {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(
+                        SpatialTapGesture()
+                            .onEnded { value in
+                                if let key = closestPetalKey(
+                                    at: value.location,
+                                    center: center,
+                                    size: size,
+                                    breathScale: breathScale
+                                ) {
+                                    onPetalTap?(key)
+                                }
+                            }
+                    )
+            }
         }
         .onAppear {
             withAnimation(.spring(response: 0.8, dampingFraction: 0.65)) {
@@ -131,10 +157,14 @@ struct FlowerBuilderCanvas: View {
                          + sin(dancePhase * 1.3 + seed * 0.4) * 1.0
                          + sin(dancePhase * 0.5 + seed * 1.7) * 0.5
                 let radialPulse = sin(dancePhase * 0.6 + seed * 0.7) * 0.02
+                let petalKey = "backOuter-\(i)"
+                let baseColor = petalColors[petalKey] ?? outerColor
+                let baseOpacity = 0.45
+                let gradientOpacity = petalGradientOpacity(baseOpacity: baseOpacity, angleDegrees: angle, strength: geometry.outerGradientStrength)
 
                 outerDesign.shape(
                     in: CGSize(width: petalWidth, height: petalHeight),
-                    color: outerColor.opacity(0.45)
+                    color: baseColor.opacity(gradientOpacity)
                 )
                 .offset(y: -petalHeight / 2 - max(petalRadius * 0.30, size * geometry.centerScale * 0.8))
                 .scaleEffect(1.0 + radialPulse)
@@ -160,10 +190,14 @@ struct FlowerBuilderCanvas: View {
                          + sin(dancePhase * 1.3 + seed * 0.4) * 1.2
                          + sin(dancePhase * 0.5 + seed * 1.7) * 0.6
                 let radialPulse = sin(dancePhase * 0.6 + seed * 0.7) * 0.02
+                let petalKey = "frontOuter-\(i)"
+                let baseColor = petalColors[petalKey] ?? outerColor
+                let baseOpacity = 0.85
+                let gradientOpacity = petalGradientOpacity(baseOpacity: baseOpacity, angleDegrees: angle, strength: geometry.outerGradientStrength)
 
                 outerDesign.shape(
                     in: CGSize(width: petalWidth, height: petalHeight),
-                    color: outerColor.opacity(0.85)
+                    color: baseColor.opacity(gradientOpacity)
                 )
                 .offset(y: -petalHeight / 2 - max(petalRadius * 0.35, size * geometry.centerScale * 0.85))
                 .scaleEffect(1.0 + radialPulse)
@@ -189,10 +223,14 @@ struct FlowerBuilderCanvas: View {
                          + sin(dancePhase * 1.35 + seed * 0.4) * 1.2
                          + sin(dancePhase * 0.36 + seed * 1.7) * 0.6
                 let radialPulse = sin(dancePhase * 0.54 + seed * 0.7) * 0.02
+                let petalKey = "inner-\(i)"
+                let baseColor = petalColors[petalKey] ?? innerColor
+                let baseOpacity = 0.8
+                let gradientOpacity = petalGradientOpacity(baseOpacity: baseOpacity, angleDegrees: angle, strength: geometry.innerGradientStrength)
 
                 innerDesign.shape(
                     in: CGSize(width: petalWidth, height: petalHeight),
-                    color: innerColor.opacity(0.8)
+                    color: baseColor.opacity(gradientOpacity)
                 )
                 .offset(y: -petalHeight / 2 - petalRadius * 0.25)
                 .scaleEffect(1.0 + radialPulse)
@@ -212,6 +250,8 @@ struct FlowerBuilderCanvas: View {
             switch stamenDesign {
             case .dewdrops:
                 DewdropsStamenView(radius: stamenRadius, color: stamenColor, count: 14)
+            case .fairyDust:
+                FairyDustStamenView(radius: stamenRadius, color: stamenColor, count: 12)
             case .sunburst:
                 SunburstStamenView(radius: stamenRadius, color: stamenColor, count: 16)
             case .tendrils:
@@ -284,5 +324,78 @@ struct FlowerBuilderCanvas: View {
                 appeared = true
             }
         }
+    }
+
+    /// Computes per-petal opacity with gradient fade around the circle.
+    /// At strength 0: returns baseOpacity unchanged.
+    /// At strength 1: full opacity at top (0°), fades to 15% at bottom (180°).
+    private func petalGradientOpacity(baseOpacity: Double, angleDegrees: Double, strength: CGFloat) -> Double {
+        guard strength > 0 else { return baseOpacity }
+        let angleRadians = angleDegrees * .pi / 180.0
+        let gradientFactor = 1.0 - Double(strength) * (1.0 - cos(angleRadians)) / 2.0
+        return max(baseOpacity * gradientFactor, 0.15)
+    }
+
+    // MARK: - Paint Hit Detection
+
+    /// Determines the nearest petal key for a tap point.
+    /// Uses `selectedPart` to route taps to the correct layer — this ensures inner petals
+    /// are always reachable when the inner petal tab is active (even behind stamen).
+    private func closestPetalKey(at point: CGPoint, center: CGPoint, size: CGFloat, breathScale: Double) -> String? {
+        // Compensate for breathScale — petals are rendered scaled around center,
+        // but the tap overlay is in unscaled space
+        let dx = (point.x - center.x) / breathScale
+        let dy = (point.y - center.y) / breathScale
+        let distance = sqrt(dx * dx + dy * dy)
+
+        // Angle in degrees from top (12 o'clock), clockwise
+        var angleDeg = atan2(dx, -dy) * 180.0 / .pi
+        if angleDeg < 0 { angleDeg += 360 }
+
+        // Only reject taps right on the tiny center disc
+        let centerDisc = size * geometry.centerScale * 0.5
+        if distance < centerDisc { return nil }
+
+        switch selectedPart {
+        case .innerPetals:
+            // Inner petal tab active: every tap outside center targets an inner petal
+            if geometry.innerCount > 0 {
+                return closestPetalInLayer(angleDeg: angleDeg, count: geometry.innerCount, angleOffset: 30, prefix: "inner")
+            }
+            return nil
+
+        case .outerPetals:
+            // Outer petal tab: split between front outer (closer) and back outer (further)
+            let splitDistance = size * 0.38
+            if distance < splitDistance && geometry.outerCount > 0 {
+                return closestPetalInLayer(angleDeg: angleDeg, count: geometry.outerCount, angleOffset: 0, prefix: "frontOuter")
+            } else if geometry.backCount > 0 {
+                let backOffset = geometry.backCount > 0 ? 360.0 / Double(geometry.backCount) / 2.0 : 0
+                return closestPetalInLayer(angleDeg: angleDeg, count: geometry.backCount, angleOffset: backOffset, prefix: "backOuter")
+            } else if geometry.outerCount > 0 {
+                return closestPetalInLayer(angleDeg: angleDeg, count: geometry.outerCount, angleOffset: 0, prefix: "frontOuter")
+            }
+            return nil
+
+        case .stamen, .center:
+            // Stamen/center tabs shouldn't normally be in paint mode,
+            // but fallback to auto-detect by distance
+            if geometry.outerCount > 0 {
+                return closestPetalInLayer(angleDeg: angleDeg, count: geometry.outerCount, angleOffset: 0, prefix: "frontOuter")
+            }
+            return nil
+        }
+    }
+
+    private func closestPetalInLayer(angleDeg: Double, count: Int, angleOffset: Double, prefix: String) -> String {
+        guard count > 0 else { return "\(prefix)-0" }
+        let anglePerPetal = 360.0 / Double(count)
+        var adjusted = angleDeg - angleOffset
+        // Normalize to [0, 360)
+        adjusted = adjusted.truncatingRemainder(dividingBy: 360)
+        if adjusted < 0 { adjusted += 360 }
+        var index = Int((adjusted / anglePerPetal).rounded())
+        if index >= count { index = 0 }
+        return "\(prefix)-\(index)"
     }
 }

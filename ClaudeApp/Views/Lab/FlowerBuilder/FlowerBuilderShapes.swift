@@ -76,6 +76,66 @@ struct ClassicPetalShape: Shape {
     }
 }
 
+/// Rose — smooth cupped petal, broad rounded top with no ruffles, narrow base
+struct RosePetalShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width
+        let h = rect.height
+        let midX = w / 2
+
+        var path = Path()
+        path.move(to: CGPoint(x: midX, y: h))
+
+        // Right side — smooth curve from narrow base to wide cupped top
+        // Seg 1: base widens smoothly, widest at ~35% from top
+        path.addCurve(
+            to: CGPoint(x: midX + w * 0.47, y: h * 0.35),
+            control1: CGPoint(x: midX + w * 0.08, y: h * 0.82),
+            control2: CGPoint(x: midX + w * 0.50, y: h * 0.58)
+        )
+        // Seg 2: curves inward to broad rounded top
+        path.addCurve(
+            to: CGPoint(x: midX, y: h * 0.01),
+            control1: CGPoint(x: midX + w * 0.44, y: h * 0.14),
+            control2: CGPoint(x: midX + w * 0.22, y: h * 0.00)
+        )
+
+        // Left side — mirror
+        // Seg 3: top curves to widest point
+        path.addCurve(
+            to: CGPoint(x: midX - w * 0.47, y: h * 0.35),
+            control1: CGPoint(x: midX - w * 0.22, y: h * 0.00),
+            control2: CGPoint(x: midX - w * 0.44, y: h * 0.14)
+        )
+        // Seg 4: widest point narrows back to base
+        path.addCurve(
+            to: CGPoint(x: midX, y: h),
+            control1: CGPoint(x: midX - w * 0.50, y: h * 0.58),
+            control2: CGPoint(x: midX - w * 0.08, y: h * 0.82)
+        )
+
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Center fold vein for rose petals — subtle midrib for depth
+struct RosePetalVeinShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let h = rect.height
+        let midX = rect.width / 2
+
+        var path = Path()
+        path.move(to: CGPoint(x: midX, y: h))
+        path.addCurve(
+            to: CGPoint(x: midX, y: h * 0.12),
+            control1: CGPoint(x: midX, y: h * 0.60),
+            control2: CGPoint(x: midX, y: h * 0.30)
+        )
+        return path
+    }
+}
+
 /// Dahlia — quilled, 4 segments per side with slight asymmetry for twist, tubular taper
 struct DahliaPetalShape: Shape {
     func path(in rect: CGRect) -> Path {
@@ -648,6 +708,97 @@ struct DewdropsStamenView: View {
             }
             .rotationEffect(.degrees(angle))
         }
+    }
+}
+
+/// Fairy Dust — long wavy stems with fluffy glowing orbs at the tips
+struct FairyDustStamenView: View {
+    let radius: CGFloat
+    let color: Color
+    let count: Int
+
+    var body: some View {
+        ForEach(0..<count, id: \.self) { i in
+            let angle = Double(i) * 360.0 / Double(count)
+            let seed = Double(i) * 1.7
+            // Varying lengths — long and whimsical
+            let lengthVariation: CGFloat = [1.0, 0.78, 0.92, 0.85, 1.05, 0.72][i % 6]
+            let stalkLength = radius * 1.3 * lengthVariation
+
+            ZStack {
+                // Wavy stem
+                FairyDustStemShape(length: stalkLength, seed: seed)
+                    .stroke(
+                        color.opacity(0.45),
+                        style: StrokeStyle(lineWidth: 1.8, lineCap: .round)
+                    )
+                    .frame(width: 20, height: stalkLength)
+                    .offset(y: -stalkLength / 2)
+
+                // Outer glow — soft fuzzy halo
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [color.opacity(0.5), color.opacity(0.15), color.opacity(0)],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 10
+                        )
+                    )
+                    .frame(width: 20, height: 20)
+                    .offset(y: -stalkLength)
+
+                // Fluffy ball — layered circles for softness
+                Circle()
+                    .fill(color.opacity(0.7))
+                    .frame(width: 10, height: 10)
+                    .offset(y: -stalkLength)
+
+                Circle()
+                    .fill(color.opacity(0.9))
+                    .frame(width: 6, height: 6)
+                    .offset(y: -stalkLength)
+
+                // Sparkle highlight
+                Circle()
+                    .fill(Color.white.opacity(0.6))
+                    .frame(width: 3, height: 3)
+                    .offset(x: -1.5, y: -stalkLength - 2)
+
+                // Tiny secondary sparkle
+                Circle()
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 2, height: 2)
+                    .offset(x: 2, y: -stalkLength + 1)
+            }
+            .rotationEffect(.degrees(angle))
+        }
+    }
+}
+
+/// Custom wavy stem path for fairy dust stamen
+struct FairyDustStemShape: Shape {
+    let length: CGFloat
+    let seed: Double
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let midX = rect.midX
+        let bottom = rect.maxY
+        let top = rect.minY
+
+        // Wavy S-curve stem
+        let wave1 = CGFloat(sin(seed * 2.3)) * 6
+        let wave2 = CGFloat(sin(seed * 1.7 + 1.5)) * 5
+
+        path.move(to: CGPoint(x: midX, y: bottom))
+        path.addCurve(
+            to: CGPoint(x: midX + wave2, y: top),
+            control1: CGPoint(x: midX + wave1, y: bottom - length * 0.35),
+            control2: CGPoint(x: midX - wave1, y: bottom - length * 0.65)
+        )
+
+        return path
     }
 }
 
@@ -1441,6 +1592,22 @@ extension OuterPetalDesign {
             ClassicPetalShape().fill(color)
                 .overlay(ClassicPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
                 .frame(width: size.width, height: size.height)
+        case .rose:
+            ZStack {
+                RosePetalShape().fill(color)
+                    .overlay(RosePetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
+                    .frame(width: size.width, height: size.height)
+                RosePetalVeinShape()
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.3), Color.white.opacity(0)],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        ),
+                        lineWidth: 0.8
+                    )
+                    .frame(width: size.width, height: size.height)
+            }
         case .dahlia:
             DahliaPetalShape().fill(color)
                 .overlay(DahliaPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
