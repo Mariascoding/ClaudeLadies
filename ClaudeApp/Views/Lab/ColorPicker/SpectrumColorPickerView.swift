@@ -1,130 +1,88 @@
 import SwiftUI
 
+// MARK: - Lab Demo
+
 struct SpectrumColorPickerView: View {
-    @State private var hue: CGFloat = 0.0
-    @State private var saturation: CGFloat = 1.0
-    @State private var brightness: CGFloat = 1.0
-
-    private var selectedColor: Color {
-        Color(hue: hue, saturation: saturation, brightness: brightness)
-    }
-
-    private var hexString: String {
-        let uiColor = UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1)
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
-        return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
-    }
-
-    private var previewTextColor: Color {
-        let uiColor = UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1)
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
-        let luminance = 0.299 * r + 0.587 * g + 0.114 * b
-        return luminance > 0.5 ? .black : .white
-    }
+    @State private var selectedColor: Color = .appRose
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: AppTheme.Spacing.lg) {
-                // Color preview
-                selectedColor
-                    .frame(height: 120)
-                    .frame(maxWidth: .infinity)
-                    .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.lg))
-                    .overlay {
-                        Text(hexString)
-                            .font(.system(.title3, design: .monospaced, weight: .semibold))
-                            .foregroundStyle(previewTextColor)
-                    }
-                    .padding(.horizontal, AppTheme.Spacing.md)
+        VStack(spacing: AppTheme.Spacing.lg) {
+            Spacer()
 
-                // Spectrum picker — 100px tall
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-                    Text("Spectrum")
-                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                        .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+            SpectrumColorPicker(
+                selection: $selectedColor,
+                onCancel: {},
+                onConfirm: {}
+            )
+            .padding(.horizontal, AppTheme.Spacing.md)
 
-                    spectrumCanvas
-                }
-                .padding(.horizontal, AppTheme.Spacing.md)
-
-                // Brightness slider
-                brightnessSlider
-
-                // Color values
-                colorValuesCard
-
-                Spacer(minLength: AppTheme.Spacing.xxl)
-            }
-            .padding(.top, AppTheme.Spacing.md)
+            Spacer()
         }
         .background(Color.appCream.ignoresSafeArea())
         .navigationTitle("Color Picker")
         .navigationBarTitleDisplayMode(.large)
     }
+}
 
-    // MARK: - Spectrum Canvas
+// MARK: - Reusable Component (140px)
 
-    private var spectrumCanvas: some View {
-        GeometryReader { geo in
-            Canvas { context, size in
-                let columnWidth: CGFloat = 2
-                var x: CGFloat = 0
-                while x < size.width {
-                    let h = x / size.width
-                    context.fill(
-                        Path(CGRect(x: x, y: 0, width: columnWidth + 0.5, height: size.height)),
-                        with: .linearGradient(
-                            Gradient(colors: [
-                                Color(hue: h, saturation: 1.0, brightness: brightness),
-                                Color(hue: h, saturation: 0.0, brightness: brightness)
-                            ]),
-                            startPoint: .init(x: x, y: 0),
-                            endPoint: .init(x: x, y: size.height)
-                        )
-                    )
-                    x += columnWidth
-                }
-            }
-            .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.sm))
-            .overlay {
-                Circle()
-                    .strokeBorder(.white, lineWidth: 2)
-                    .shadow(color: .black.opacity(0.3), radius: 2)
-                    .frame(width: 24, height: 24)
-                    .position(
-                        x: hue * geo.size.width,
-                        y: (1 - saturation) * geo.size.height
-                    )
-            }
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        hue = max(0, min(1, value.location.x / geo.size.width))
-                        saturation = max(0, min(1, 1 - value.location.y / geo.size.height))
-                    }
-            )
-        }
-        .frame(height: 100)
-    }
+struct SpectrumColorPicker: View {
+    @Binding var selection: Color
+    var onCancel: () -> Void
+    var onConfirm: () -> Void
 
-    // MARK: - Brightness Slider
+    @State private var hue: CGFloat = 0.0
+    @State private var saturation: CGFloat = 1.0
+    @State private var brightness: CGFloat = 1.0
+    @State private var didInit = false
 
-    private var brightnessSlider: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-            HStack {
-                Text("Brightness")
-                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                    .foregroundStyle(Color.appSoftBrown.opacity(0.6))
-                Spacer()
-                Text("\(Int(brightness * 100))%")
-                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .semibold))
-                    .foregroundStyle(selectedColor)
-            }
-
+    var body: some View {
+        VStack(spacing: 4) {
+            // Spectrum — fills remaining height
             GeometryReader { geo in
-                ZStack(alignment: .leading) {
+                Canvas { context, size in
+                    let step: CGFloat = 2
+                    var x: CGFloat = 0
+                    while x < size.width {
+                        let h = x / size.width
+                        context.fill(
+                            Path(CGRect(x: x, y: 0, width: step + 0.5, height: size.height)),
+                            with: .linearGradient(
+                                Gradient(colors: [
+                                    Color(hue: h, saturation: 1.0, brightness: brightness),
+                                    Color(hue: h, saturation: 0.0, brightness: brightness)
+                                ]),
+                                startPoint: .init(x: x, y: 0),
+                                endPoint: .init(x: x, y: size.height)
+                            )
+                        )
+                        x += step
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay {
+                    Circle()
+                        .strokeBorder(.white, lineWidth: 2)
+                        .shadow(color: .black.opacity(0.3), radius: 2)
+                        .frame(width: 20, height: 20)
+                        .position(
+                            x: hue * geo.size.width,
+                            y: (1 - saturation) * geo.size.height
+                        )
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            hue = max(0, min(1, value.location.x / geo.size.width))
+                            saturation = max(0, min(1, 1 - value.location.y / geo.size.height))
+                            updateSelection()
+                        }
+                )
+            }
+
+            // Brightness slider
+            GeometryReader { geo in
+                ZStack {
                     LinearGradient(
                         colors: [
                             Color(hue: hue, saturation: saturation, brightness: 0),
@@ -136,10 +94,10 @@ struct SpectrumColorPickerView: View {
                     .clipShape(Capsule())
 
                     Circle()
-                        .fill(selectedColor)
-                        .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-                        .shadow(color: .black.opacity(0.15), radius: 3)
-                        .frame(width: 28, height: 28)
+                        .fill(Color(hue: hue, saturation: saturation, brightness: brightness))
+                        .overlay(Circle().strokeBorder(.white, lineWidth: 1.5))
+                        .shadow(color: .black.opacity(0.15), radius: 2)
+                        .frame(width: 16, height: 16)
                         .position(
                             x: brightness * geo.size.width,
                             y: geo.size.height / 2
@@ -149,63 +107,56 @@ struct SpectrumColorPickerView: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             brightness = max(0, min(1, value.location.x / geo.size.width))
+                            updateSelection()
                         }
                 )
             }
-            .frame(height: 28)
+            .frame(height: 16)
+
+            // Cancel / Confirm
+            HStack(spacing: 8) {
+                Button {
+                    onCancel()
+                } label: {
+                    Text("Cancel")
+                        .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
+                        .foregroundStyle(Color.appSoftBrown)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule()
+                                .strokeBorder(Color.appSoftBrown.opacity(0.3), lineWidth: 1)
+                        )
+                }
+
+                Button {
+                    onConfirm()
+                } label: {
+                    Text("Confirm")
+                        .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 5)
+                        .background(Color(hue: hue, saturation: saturation, brightness: brightness))
+                        .clipShape(Capsule())
+                }
+            }
+            .frame(height: 26)
         }
-        .warmCard()
-        .padding(.horizontal, AppTheme.Spacing.md)
+        .frame(height: 140)
+        .onAppear {
+            guard !didInit else { return }
+            didInit = true
+            let uiColor = UIColor(selection)
+            var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            uiColor.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+            hue = h
+            saturation = s
+            brightness = b
+        }
     }
 
-    // MARK: - Color Values
-
-    private var colorValuesCard: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            HStack(spacing: AppTheme.Spacing.sm) {
-                Circle()
-                    .fill(selectedColor)
-                    .frame(width: 20, height: 20)
-                    .overlay(Circle().strokeBorder(Color.appSoftBrown.opacity(0.2), lineWidth: 0.5))
-                Text("Color Values")
-                    .warmHeadline()
-            }
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Spacing.sm) {
-                valueCell(label: "Hue", value: "\(Int(hue * 360))\u{00B0}")
-                valueCell(label: "Sat", value: "\(Int(saturation * 100))%")
-                valueCell(label: "Bri", value: "\(Int(brightness * 100))%")
-            }
-
-            let rgb = rgbComponents()
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Spacing.sm) {
-                valueCell(label: "R", value: "\(rgb.r)")
-                valueCell(label: "G", value: "\(rgb.g)")
-                valueCell(label: "B", value: "\(rgb.b)")
-            }
-        }
-        .warmCard()
-        .padding(.horizontal, AppTheme.Spacing.md)
-    }
-
-    private func valueCell(label: String, value: String) -> some View {
-        VStack(spacing: AppTheme.Spacing.xs) {
-            Text(label)
-                .captionStyle()
-            Text(value)
-                .font(.system(.body, design: .monospaced, weight: .semibold))
-                .foregroundStyle(Color.appSoftBrown)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, AppTheme.Spacing.sm)
-        .background(Color.appSoftBrown.opacity(0.06))
-        .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.sm))
-    }
-
-    private func rgbComponents() -> (r: Int, g: Int, b: Int) {
-        let uiColor = UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1)
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
-        return (Int(r * 255), Int(g * 255), Int(b * 255))
+    private func updateSelection() {
+        selection = Color(hue: hue, saturation: saturation, brightness: brightness)
     }
 }
