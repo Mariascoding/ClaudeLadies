@@ -29,6 +29,7 @@ struct FlowerBuilderView: View {
 
     // Clear all
     @State private var showClearAllAlert = false
+    @State private var isDrawerOpen = true
 
     // Paint mode
     @State private var isPaintMode = false
@@ -80,14 +81,6 @@ struct FlowerBuilderView: View {
                     }
                 }
                 .padding(.horizontal, AppTheme.Spacing.md)
-
-                // Preset selector
-                presetRow
-
-                // My Flowers section
-                if !savedDesigns.isEmpty {
-                    myFlowersSection
-                }
 
                 // Part selector
                 Picker("Flower Part", selection: $selectedPart) {
@@ -217,7 +210,7 @@ struct FlowerBuilderView: View {
                                     isNaming = true
                                 }
                             } label: {
-                                Text("Save Flower")
+                                Text("Save Preset")
                                     .font(.system(.body, design: AppTheme.fontFamily, weight: .medium))
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, AppTheme.Spacing.lg)
@@ -235,10 +228,13 @@ struct FlowerBuilderView: View {
                 }
                 Spacer().frame(height: AppTheme.Spacing.lg)
             }
-            .padding(.top, AppTheme.Spacing.md)
+            .padding(.top, isDrawerOpen ? 90 : 44)
         }
         .background(Color.appCream)
         .navigationTitle("Flower Builder")
+        .overlay(alignment: .top) {
+            presetsDrawer
+        }
         .overlay(alignment: .top) {
             if let name = savedConfirmationName {
                 Text("Saved \"\(name)\"")
@@ -253,16 +249,16 @@ struct FlowerBuilderView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .alert("Clear All Flowers?", isPresented: $showClearAllAlert) {
+        .alert("Clear Saved Presets?", isPresented: $showClearAllAlert) {
             Button("Cancel", role: .cancel) { }
-            Button("Clear All", role: .destructive) {
+            Button("Clear Saved", role: .destructive) {
                 for design in savedDesigns {
                     modelContext.delete(design)
                 }
                 try? modelContext.save()
             }
         } message: {
-            Text("This will delete all \(savedDesigns.count) saved flowers.")
+            Text("This will delete all \(savedDesigns.count) saved presets.")
         }
         .onReceive(NotificationCenter.default.publisher(for: .deviceDidShake)) { _ in
             if isPaintMode && !paintHistory.isEmpty {
@@ -273,117 +269,150 @@ struct FlowerBuilderView: View {
         }
     }
 
-    // MARK: - Preset Row
+    // MARK: - Presets Drawer
 
-    private var presetRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppTheme.Spacing.sm) {
-                ForEach(FlowerPreset.allCases) { preset in
-                    Button {
-                        applyPreset(preset)
-                    } label: {
-                        HStack(spacing: AppTheme.Spacing.xs) {
-                            Image(systemName: preset.icon)
-                                .font(.caption)
-                            Text(preset.displayName)
-                                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+    private var presetsDrawer: some View {
+        VStack(spacing: 0) {
+            if isDrawerOpen {
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    // Header
+                    HStack {
+                        Text("Presets")
+                            .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.8))
+                        Spacer()
+                        if !savedDesigns.isEmpty {
+                            Button {
+                                showClearAllAlert = true
+                            } label: {
+                                Text("Clear Saved")
+                                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
+                                    .foregroundStyle(Color.appSoftBrown.opacity(0.4))
+                            }
                         }
-                        .foregroundStyle(preset.accentColor)
-                        .padding(.horizontal, AppTheme.Spacing.sm)
-                        .padding(.vertical, AppTheme.Spacing.xs)
-                        .background(
-                            Capsule()
-                                .fill(preset.accentColor.opacity(0.1))
-                        )
-                    }
-                }
-            }
-            .padding(.horizontal, AppTheme.Spacing.md)
-        }
-    }
-
-    // MARK: - My Flowers Section
-
-    private var myFlowersSection: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-            HStack {
-                Text("My Flowers")
-                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                    .foregroundStyle(Color.appSoftBrown.opacity(0.6))
-                Spacer()
-                Button {
-                    showClearAllAlert = true
-                } label: {
-                    Text("Clear All")
-                        .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
-                        .foregroundStyle(Color.appSoftBrown.opacity(0.4))
-                }
-            }
-            .padding(.horizontal, AppTheme.Spacing.md)
-
-            // Inline rename field (replaces pill list while renaming)
-            if let design = renamingDesign {
-                InlineFlowerNameField(
-                    initialName: design.name,
-                    title: "Rename Flower",
-                    onSave: { newName in
-                        design.name = newName
-                        try? modelContext.save()
-                        withAnimation(AppTheme.gentleAnimation) {
-                            renamingDesign = nil
-                        }
-                    },
-                    onCancel: {
-                        withAnimation(AppTheme.gentleAnimation) {
-                            renamingDesign = nil
+                        Button {
+                            withAnimation(AppTheme.gentleAnimation) {
+                                isDrawerOpen = false
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(.title3))
+                                .foregroundStyle(Color.appSoftBrown.opacity(0.4))
                         }
                     }
-                )
-                .padding(.horizontal, AppTheme.Spacing.md)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AppTheme.Spacing.sm) {
-                        ForEach(savedDesigns) { design in
-                            HStack(spacing: 4) {
-                                Button {
-                                    loadDesign(design)
-                                } label: {
-                                    Text(design.name)
-                                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                                        .foregroundStyle(design.outerColor)
-                                }
 
-                                Button {
-                                    withAnimation(AppTheme.gentleAnimation) {
-                                        renamingDesign = design
-                                    }
-                                } label: {
-                                    Image(systemName: "pencil")
-                                        .font(.system(size: 10, weight: .medium))
-                                        .foregroundStyle(design.outerColor.opacity(0.6))
+                    // Inline rename field
+                    if let design = renamingDesign {
+                        InlineFlowerNameField(
+                            initialName: design.name,
+                            title: "Rename Preset",
+                            onSave: { newName in
+                                design.name = newName
+                                try? modelContext.save()
+                                withAnimation(AppTheme.gentleAnimation) {
+                                    renamingDesign = nil
                                 }
-
-                                Button {
-                                    modelContext.delete(design)
-                                    try? modelContext.save()
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 9, weight: .bold))
-                                        .foregroundStyle(design.outerColor.opacity(0.4))
+                            },
+                            onCancel: {
+                                withAnimation(AppTheme.gentleAnimation) {
+                                    renamingDesign = nil
                                 }
                             }
-                            .padding(.horizontal, AppTheme.Spacing.sm)
-                            .padding(.vertical, AppTheme.Spacing.xs)
-                            .background(
-                                Capsule()
-                                    .fill(design.outerColor.opacity(0.1))
-                            )
+                        )
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: AppTheme.Spacing.sm) {
+                                // Built-in presets
+                                ForEach(FlowerPreset.allCases) { preset in
+                                    Button {
+                                        applyPreset(preset)
+                                    } label: {
+                                        HStack(spacing: AppTheme.Spacing.xs) {
+                                            Image(systemName: preset.icon)
+                                                .font(.caption)
+                                            Text(preset.displayName)
+                                                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                                        }
+                                        .foregroundStyle(preset.accentColor)
+                                        .padding(.horizontal, AppTheme.Spacing.sm)
+                                        .padding(.vertical, AppTheme.Spacing.xs)
+                                        .background(
+                                            Capsule()
+                                                .fill(preset.accentColor.opacity(0.1))
+                                        )
+                                    }
+                                }
+
+                                // Saved presets
+                                ForEach(savedDesigns) { design in
+                                    HStack(spacing: 4) {
+                                        Button {
+                                            loadDesign(design)
+                                        } label: {
+                                            Text(design.name)
+                                                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                                                .foregroundStyle(design.outerColor)
+                                        }
+
+                                        Button {
+                                            withAnimation(AppTheme.gentleAnimation) {
+                                                renamingDesign = design
+                                            }
+                                        } label: {
+                                            Image(systemName: "pencil")
+                                                .font(.system(size: 10, weight: .medium))
+                                                .foregroundStyle(design.outerColor.opacity(0.6))
+                                        }
+
+                                        Button {
+                                            modelContext.delete(design)
+                                            try? modelContext.save()
+                                        } label: {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundStyle(design.outerColor.opacity(0.4))
+                                        }
+                                    }
+                                    .padding(.horizontal, AppTheme.Spacing.sm)
+                                    .padding(.vertical, AppTheme.Spacing.xs)
+                                    .background(
+                                        Capsule()
+                                            .fill(design.outerColor.opacity(0.1))
+                                    )
+                                }
+                            }
                         }
                     }
-                    .padding(.horizontal, AppTheme.Spacing.md)
                 }
+                .padding(.horizontal, AppTheme.Spacing.md)
+                .padding(.vertical, AppTheme.Spacing.sm)
+                .background(.ultraThinMaterial)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
+            if !isDrawerOpen {
+                Button {
+                    withAnimation(AppTheme.gentleAnimation) {
+                        isDrawerOpen = true
+                    }
+                } label: {
+                    HStack(spacing: AppTheme.Spacing.xs) {
+                        Text("Presets")
+                            .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
+                        Image(systemName: "chevron.down")
+                            .font(.system(.caption2, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.7))
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                    .padding(.vertical, AppTheme.Spacing.xs)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                }
+                .padding(.top, AppTheme.Spacing.sm)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .animation(AppTheme.gentleAnimation, value: isDrawerOpen)
     }
 
     // MARK: - Petal Count Slider
@@ -644,7 +673,7 @@ struct FlowerBuilderView: View {
 
 private struct InlineFlowerNameField: View {
     let initialName: String
-    var title: String = "Name Your Flower"
+    var title: String = "Name Your Preset"
     var onSave: (String) -> Void
     var onCancel: () -> Void
 
@@ -656,7 +685,7 @@ private struct InlineFlowerNameField: View {
                 .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
                 .foregroundStyle(Color.appSoftBrown.opacity(0.6))
 
-            TextField("Flower name", text: $name)
+            TextField("Preset name", text: $name)
                 .font(.system(.body, design: AppTheme.fontFamily))
                 .textFieldStyle(.roundedBorder)
                 .onSubmit {

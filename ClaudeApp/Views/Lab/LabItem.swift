@@ -9,6 +9,7 @@ enum LabItem: String, CaseIterable, Identifiable {
     case bloom
     case flowerBuilder
     case flowerBloom
+    case colorPicker
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .bloom: "Bloom"
         case .flowerBuilder: "Flower Builder"
         case .flowerBloom: "Flower Bloom"
+        case .colorPicker: "Color Picker"
         }
     }
 
@@ -35,6 +37,7 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .bloom: "Press and hold to blossom through emotion"
         case .flowerBuilder: "Design your own flower, petal by petal"
         case .flowerBloom: "Design a flower, then press to blossom"
+        case .colorPicker: "Pick any colour from a full spectrum"
         }
     }
 
@@ -48,6 +51,7 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .bloom: "sparkle"
         case .flowerBuilder: "camera.macro"
         case .flowerBloom: "sparkles"
+        case .colorPicker: "paintpalette.fill"
         }
     }
 
@@ -61,6 +65,7 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .bloom: Color(red: 0.95, green: 0.78, blue: 0.40)
         case .flowerBuilder: .appRose
         case .flowerBloom: .appRose
+        case .colorPicker: .appTerracotta
         }
     }
 
@@ -83,6 +88,8 @@ enum LabItem: String, CaseIterable, Identifiable {
             FlowerBuilderView()
         case .flowerBloom:
             FlowerBloomView()
+        case .colorPicker:
+            SpectrumColorPickerView()
         }
     }
 }

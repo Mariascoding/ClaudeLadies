@@ -422,6 +422,8 @@ struct FlowerBloomCanvas: View {
             switch stamenDesign {
             case .dewdrops:
                 DewdropsStamenView(radius: stamenRadius, color: stamenColor, count: 14)
+            case .fairyDust:
+                FairyDustStamenView(radius: stamenRadius, color: stamenColor, count: 12)
             case .sunburst:
                 SunburstStamenView(radius: stamenRadius, color: stamenColor, count: 16)
             case .tendrils:
