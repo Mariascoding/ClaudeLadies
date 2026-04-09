@@ -150,6 +150,7 @@ struct FlowerBloomCanvas: View {
     let stamenColor: Color
     let centerColor: Color
     let geometry: FlowerGeometry
+    var petalColors: [String: Color] = [:]
 
     @Binding var isHolding: Bool
     @Binding var holdProgress: CGFloat
@@ -293,9 +294,10 @@ struct FlowerBloomCanvas: View {
 
         ZStack {
             ForEach(petals) { p in
+                let baseColor = petalColors["backOuter-\(p.id)"] ?? outerColor
                 outerDesign.shape(
                     in: CGSize(width: petalWidth, height: petalHeight),
-                    color: outerColor.opacity(p.opacity)
+                    color: baseColor.opacity(p.opacity)
                 )
                 .offset(y: p.offsetY)
                 .scaleEffect(p.scale)
@@ -346,9 +348,10 @@ struct FlowerBloomCanvas: View {
 
         ZStack {
             ForEach(petals) { p in
+                let baseColor = petalColors["frontOuter-\(p.id)"] ?? outerColor
                 outerDesign.shape(
                     in: CGSize(width: petalWidth, height: petalHeight),
-                    color: outerColor.opacity(p.opacity)
+                    color: baseColor.opacity(p.opacity)
                 )
                 .offset(y: p.offsetY)
                 .scaleEffect(p.scale)
@@ -400,9 +403,10 @@ struct FlowerBloomCanvas: View {
 
         ZStack {
             ForEach(petals) { p in
+                let baseColor = petalColors["inner-\(p.id)"] ?? innerColor
                 innerDesign.shape(
                     in: CGSize(width: petalWidth, height: petalHeight),
-                    color: innerColor.opacity(p.opacity)
+                    color: baseColor.opacity(p.opacity)
                 )
                 .offset(y: p.offsetY)
                 .scaleEffect(p.scale)
