@@ -11,13 +11,18 @@ struct Flower3DView: View {
     let stamenColor: Color
     let centerColor: Color
     let geometry: FlowerGeometry
+    var isBloomMode: Bool = false
+    var bloomProgress: CGFloat = 0
 
     @State private var scene: SCNScene?
 
     var body: some View {
         Group {
             if let scene {
-                SceneView(scene: scene, options: [.allowsCameraControl])
+                SceneView(
+                    scene: scene,
+                    options: isBloomMode ? [] : [.allowsCameraControl]
+                )
             } else {
                 Color.clear
             }
@@ -32,6 +37,16 @@ struct Flower3DView: View {
         .onChange(of: stamenColor.description) { rebuildScene() }
         .onChange(of: centerColor.description) { rebuildScene() }
         .onChange(of: geometry) { rebuildScene() }
+        .onChange(of: isBloomMode) {
+            if isBloomMode, let scene {
+                Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress)
+            }
+        }
+        .onChange(of: bloomProgress) {
+            if isBloomMode, let scene {
+                Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress)
+            }
+        }
     }
 
     private func rebuildScene() {
@@ -46,5 +61,8 @@ struct Flower3DView: View {
             centerColor: centerColor,
             geometry: geometry
         )
+        if isBloomMode, let scene {
+            Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress)
+        }
     }
 }

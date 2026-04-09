@@ -61,8 +61,99 @@ enum Flower3DSceneBuilder {
             geometry: geometry
         )
 
+        // Bloom glow light (off by default)
+        let bloomGlow = SCNNode()
+        bloomGlow.name = "bloomGlow"
+        bloomGlow.light = SCNLight()
+        bloomGlow.light?.type = .omni
+        bloomGlow.light?.color = UIColor(red: 1.0, green: 0.85, blue: 0.45, alpha: 1.0)
+        bloomGlow.light?.intensity = 0
+        bloomGlow.light?.attenuationStartDistance = 0
+        bloomGlow.light?.attenuationEndDistance = 3.0
+        bloomGlow.position = SCNVector3(0, 0.2, 0)
+        flowerRoot.addChildNode(bloomGlow)
+
         rootNode.addChildNode(flowerRoot)
         return scene
+    }
+
+    // MARK: - Bloom Animation
+
+    static func applyBloom(to scene: SCNScene, progress: CGFloat) {
+        guard let flowerRoot = scene.rootNode.childNode(withName: "flowerRoot", recursively: false) else { return }
+
+        let p = min(max(progress, 0), 1)
+
+        // Layer activation cascade (same timing as 2D)
+        let centerProg = layerProgress(p, activationStart: 0.00, fullAt: 0.20)
+        let stamenProg = layerProgress(p, activationStart: 0.08, fullAt: 0.30)
+        let innerProg  = layerProgress(p, activationStart: 0.15, fullAt: 0.50)
+        let frontProg  = layerProgress(p, activationStart: 0.25, fullAt: 0.65)
+        let backProg   = layerProgress(p, activationStart: 0.35, fullAt: 0.80)
+
+        // Back outer petals
+        if let group = flowerRoot.childNode(withName: "backOuterGroup", recursively: false) {
+            let s = Float(0.1 + backProg * 0.9)
+            group.scale = SCNVector3(s, s, s)
+            group.opacity = CGFloat(0.3 + backProg * 0.7)
+            applyTiltToWrappers(group, closedAngle: -5, openAngle: -55, progress: Float(backProg))
+        }
+
+        // Front outer petals
+        if let group = flowerRoot.childNode(withName: "frontOuterGroup", recursively: false) {
+            let s = Float(0.1 + frontProg * 0.9)
+            group.scale = SCNVector3(s, s, s)
+            group.opacity = CGFloat(0.3 + frontProg * 0.7)
+            applyTiltToWrappers(group, closedAngle: -5, openAngle: -35, progress: Float(frontProg))
+        }
+
+        // Inner petals
+        if let group = flowerRoot.childNode(withName: "innerGroup", recursively: false) {
+            let s = Float(0.1 + innerProg * 0.9)
+            group.scale = SCNVector3(s, s, s)
+            group.opacity = CGFloat(0.3 + innerProg * 0.7)
+            applyTiltToWrappers(group, closedAngle: -5, openAngle: -20, progress: Float(innerProg))
+        }
+
+        // Stamen
+        if let group = flowerRoot.childNode(withName: "stamenGroup", recursively: false) {
+            let s = Float(0.1 + stamenProg * 0.9)
+            group.scale = SCNVector3(s, s, s)
+            group.opacity = CGFloat(0.3 + stamenProg * 0.7)
+            applyTiltToWrappers(group, closedAngle: -5, openAngle: -20, progress: Float(stamenProg))
+        }
+
+        // Center
+        if let center = flowerRoot.childNode(withName: "centerNode", recursively: false) {
+            let cs = Float(0.2 + centerProg * 0.8)
+            center.scale = SCNVector3(cs, cs * 0.5, cs)
+            center.opacity = CGFloat(0.3 + centerProg * 0.7)
+        }
+
+        // Bloom glow light
+        if let glow = flowerRoot.childNode(withName: "bloomGlow", recursively: false) {
+            glow.light?.intensity = CGFloat(p * 600)
+        }
+    }
+
+    private static func layerProgress(_ holdProgress: CGFloat, activationStart: CGFloat, fullAt: CGFloat) -> CGFloat {
+        guard holdProgress > activationStart else { return 0 }
+        let range = fullAt - activationStart
+        guard range > 0 else { return 1 }
+        return min((holdProgress - activationStart) / range, 1.0)
+    }
+
+    private static func applyTiltToWrappers(_ group: SCNNode, closedAngle: Float, openAngle: Float, progress: Float) {
+        let closedRad = closedAngle * Float.pi / 180
+        let openRad = openAngle * Float.pi / 180
+        let currentTilt = closedRad + (openRad - closedRad) * progress
+
+        for wrapper in group.childNodes {
+            // Each wrapper has a child petal node whose x euler controls tilt
+            if let petalNode = wrapper.childNodes.first {
+                petalNode.eulerAngles.x = currentTilt
+            }
+        }
     }
 
     // MARK: - Lighting
@@ -109,6 +200,8 @@ enum Flower3DSceneBuilder {
         let innerParams = innerDesign.meshParams
 
         // Back outer petals (tilted further out)
+        let backOuterGroup = SCNNode()
+        backOuterGroup.name = "backOuterGroup"
         if geometry.backCount > 0 {
             let halfInterval = Float.pi / Float(max(geometry.backCount, 1))
             for i in 0..<geometry.backCount {
@@ -121,11 +214,14 @@ enum Flower3DSceneBuilder {
                     yRotation: angle,
                     scale: 1.0
                 )
-                parent.addChildNode(petal)
+                backOuterGroup.addChildNode(petal)
             }
         }
+        parent.addChildNode(backOuterGroup)
 
         // Front outer petals
+        let frontOuterGroup = SCNNode()
+        frontOuterGroup.name = "frontOuterGroup"
         if geometry.outerCount > 0 {
             for i in 0..<geometry.outerCount {
                 let angle = Float(i) / Float(geometry.outerCount) * 2 * Float.pi
@@ -137,11 +233,14 @@ enum Flower3DSceneBuilder {
                     yRotation: angle,
                     scale: 1.0
                 )
-                parent.addChildNode(petal)
+                frontOuterGroup.addChildNode(petal)
             }
         }
+        parent.addChildNode(frontOuterGroup)
 
         // Inner petals (smaller, less tilted, offset 30 deg from outer)
+        let innerGroup = SCNNode()
+        innerGroup.name = "innerGroup"
         if geometry.innerCount > 0 {
             let offset = 30 * Float.pi / 180
             for i in 0..<geometry.innerCount {
@@ -154,9 +253,10 @@ enum Flower3DSceneBuilder {
                     yRotation: angle,
                     scale: 0.7
                 )
-                parent.addChildNode(petal)
+                innerGroup.addChildNode(petal)
             }
         }
+        parent.addChildNode(innerGroup)
     }
 
     private static func makePetalNode(
