@@ -31,6 +31,9 @@ final class SavedFlowerDesign {
     var outerGradientStrength: Double = 0
     var innerGradientStrength: Double = 0
 
+    // Bloom state
+    var bloomStateRaw: String = "flourishing"
+
     // Per-petal color overrides — JSON-encoded [String: String] where values are "R,G,B"
     var petalColorsRaw: String = ""
 
@@ -45,7 +48,8 @@ final class SavedFlowerDesign {
         stamenColor: Color,
         centerColor: Color,
         geometry: FlowerGeometry,
-        petalColors: [String: Color] = [:]
+        petalColors: [String: Color] = [:],
+        bloomState: BloomState = .flourishing
     ) {
         self.name = name
         self.createdDate = Date()
@@ -66,6 +70,7 @@ final class SavedFlowerDesign {
         self.stamenScale = Double(geometry.stamenScale)
         self.outerGradientStrength = Double(geometry.outerGradientStrength)
         self.innerGradientStrength = Double(geometry.innerGradientStrength)
+        self.bloomStateRaw = bloomState.rawValue
         self.petalColorOverrides = petalColors
     }
 
@@ -129,6 +134,11 @@ final class SavedFlowerDesign {
     var centerColor: Color {
         get { Self.decode(centerColorRaw) }
         set { centerColorRaw = Self.encode(newValue) }
+    }
+
+    var bloomState: BloomState {
+        get { BloomState(rawValue: bloomStateRaw) ?? .flourishing }
+        set { bloomStateRaw = newValue.rawValue }
     }
 
     var geometry: FlowerGeometry {

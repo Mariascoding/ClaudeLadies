@@ -1,5 +1,75 @@
 import SwiftUI
 
+// MARK: - Bloom State
+
+enum BloomState: String, CaseIterable, Codable, Identifiable {
+    case bud
+    case budding
+    case blooming
+    case flourishing
+
+    var id: String { rawValue }
+
+    var bloomAmount: CGFloat {
+        switch self {
+        case .bud: 0.15
+        case .budding: 0.4
+        case .blooming: 0.7
+        case .flourishing: 1.0
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .bud: "Bud"
+        case .budding: "Budding"
+        case .blooming: "Blooming"
+        case .flourishing: "Flourishing"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .bud: "leaf.circle"
+        case .budding: "leaf.circle.fill"
+        case .blooming: "camera.macro"
+        case .flourishing: "sparkles"
+        }
+    }
+
+    var emotionalLabel: String {
+        switch self {
+        case .bud: "Irritated · Anxious · Guarded"
+        case .budding: "Tender · Unsettled · Processing"
+        case .blooming: "Calm · Focused · Balanced"
+        case .flourishing: "Joyful · Content · Harmonious"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .bud: Color(red: 0.55, green: 0.50, blue: 0.58)
+        case .budding: Color(red: 0.72, green: 0.58, blue: 0.52)
+        case .blooming: .appSage
+        case .flourishing: .appRose
+        }
+    }
+
+    static func closest(to amount: CGFloat) -> BloomState {
+        let clamped = min(max(amount, 0), 1)
+        var best: BloomState = .bud
+        var bestDist = CGFloat.infinity
+        for state in allCases {
+            let dist = abs(clamped - state.bloomAmount)
+            if dist < bestDist {
+                bestDist = dist
+                best = state
+            }
+        }
+        return best
+    }
+}
+
 // MARK: - Flower Color
 
 enum FlowerColor: String, CaseIterable, Identifiable {

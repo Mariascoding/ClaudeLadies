@@ -11,10 +11,10 @@ private final class FlowerBloomHapticsEngine {
     private var firedStates: Set<Int> = []
 
     private static let stateThresholds: [(state: Int, progress: CGFloat, style: HapticStyle)] = [
-        (1, 0.20, .light(0.5)),
+        (1, 0.15, .light(0.5)),
         (2, 0.40, .medium(0.6)),
-        (3, 0.65, .medium(0.85)),
-        (4, 0.95, .heavy(1.0)),
+        (3, 0.70, .medium(0.85)),
+        (4, 1.00, .heavy(1.0)),
     ]
 
     enum HapticStyle {
@@ -152,8 +152,9 @@ struct FlowerBloomCanvas: View {
     let geometry: FlowerGeometry
 
     @Binding var isHolding: Bool
+    @Binding var holdProgress: CGFloat
+    @Binding var bloomState: BloomState
 
-    @State private var holdProgress: CGFloat = 0
     @State private var breathPhase: CGFloat = 0
     @State private var dancePhase: CGFloat = 0
     @State private var colorPhase: CGFloat = 0
@@ -216,9 +217,16 @@ struct FlowerBloomCanvas: View {
             if isHolding {
                 holdProgress = min(holdProgress + dt / bloomDuration, 1.0)
                 haptics.update(progress: holdProgress)
-            } else if holdProgress > 0.001 {
-                holdProgress -= holdProgress * 2.5 * dt
-                if holdProgress < 0.001 { holdProgress = 0 }
+            }
+        }
+        .onChange(of: isHolding) { _, holding in
+            if !holding {
+                // Snap to nearest bloom state on release
+                let snapped = BloomState.closest(to: holdProgress)
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                    bloomState = snapped
+                    holdProgress = snapped.bloomAmount
+                }
             }
         }
     }

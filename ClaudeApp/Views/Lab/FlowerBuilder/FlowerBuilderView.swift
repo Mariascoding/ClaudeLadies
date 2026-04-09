@@ -118,11 +118,6 @@ struct FlowerBuilderView: View {
                                 range: 3...30,
                                 accent: FlowerPart.outerPetals.accentColor
                             )
-                            gradientSlider(
-                                label: "Opacity Gradient",
-                                value: $geometry.outerGradientStrength,
-                                accent: FlowerPart.outerPetals.accentColor
-                            )
                         }
                     case .innerPetals:
                         VStack(spacing: AppTheme.Spacing.sm) {
@@ -141,11 +136,6 @@ struct FlowerBuilderView: View {
                                     set: { geometry.innerCount = $0 }
                                 ),
                                 range: 0...20,
-                                accent: FlowerPart.innerPetals.accentColor
-                            )
-                            gradientSlider(
-                                label: "Opacity Gradient",
-                                value: $geometry.innerGradientStrength,
                                 accent: FlowerPart.innerPetals.accentColor
                             )
                         }
@@ -437,31 +427,6 @@ struct FlowerBuilderView: View {
                 .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .semibold))
                 .foregroundStyle(accent)
                 .frame(width: 28, alignment: .trailing)
-        }
-        .warmCard()
-    }
-
-    // MARK: - Gradient Slider
-
-    private func gradientSlider(label: String, value: Binding<CGFloat>, accent: Color) -> some View {
-        HStack(spacing: AppTheme.Spacing.sm) {
-            Text(label)
-                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                .foregroundStyle(Color.appSoftBrown.opacity(0.6))
-
-            Slider(
-                value: Binding(
-                    get: { Double(value.wrappedValue) },
-                    set: { value.wrappedValue = CGFloat($0) }
-                ),
-                in: 0...1
-            )
-            .tint(accent)
-
-            Text("\(Int(value.wrappedValue * 100))%")
-                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .semibold))
-                .foregroundStyle(accent)
-                .frame(width: 40, alignment: .trailing)
         }
         .warmCard()
     }

@@ -4,6 +4,8 @@ struct FlowerBloomView: View {
     @State private var selectedPreset: FlowerPreset = .rose
     @State private var isDesignConfirmed = false
     @State private var isHolding = false
+    @State private var holdProgress: CGFloat = 0
+    @State private var bloomState: BloomState = .bud
 
     var body: some View {
         Group {
@@ -101,6 +103,10 @@ struct FlowerBloomView: View {
 
     // MARK: - Phase 2: Bloom Canvas
 
+    private var currentDisplayState: BloomState {
+        isHolding ? BloomState.closest(to: holdProgress) : bloomState
+    }
+
     private var bloomPhase: some View {
         ZStack(alignment: .bottom) {
             FlowerBloomCanvas(
@@ -113,25 +119,41 @@ struct FlowerBloomView: View {
                 stamenColor: selectedPreset.stamenColor.color,
                 centerColor: selectedPreset.centerColor.color,
                 geometry: selectedPreset.geometry,
-                isHolding: $isHolding
+                isHolding: $isHolding,
+                holdProgress: $holdProgress,
+                bloomState: $bloomState
             )
             .ignoresSafeArea()
 
+            // Progress ring overlay
+            if isHolding {
+                bloomProgressRing
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+
             VStack(spacing: AppTheme.Spacing.md) {
-                Text("Press & Hold to Bloom")
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.8))
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .environment(\.colorScheme, .dark)
-                    .opacity(isHolding ? 0 : 1)
-                    .animation(.easeInOut(duration: 0.4), value: isHolding)
+                // Bloom state badge
+                bloomStateBadge
+                    .animation(.easeInOut(duration: 0.3), value: currentDisplayState)
+
+                if !isHolding {
+                    Text("Press & Hold to Bloom")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .environment(\.colorScheme, .dark)
+                }
 
                 Button {
                     withAnimation(.easeInOut(duration: 0.4)) {
                         isDesignConfirmed = false
                         isHolding = false
+                        holdProgress = 0
+                        bloomState = .bud
                     }
                 } label: {
                     Text("Change Flower")
@@ -142,6 +164,68 @@ struct FlowerBloomView: View {
                 .animation(.easeInOut(duration: 0.4), value: isHolding)
             }
             .padding(.bottom, 40)
+        }
+        .animation(.easeInOut(duration: 0.4), value: isHolding)
+    }
+
+    // MARK: - Bloom State Badge
+
+    private var bloomStateBadge: some View {
+        let state = currentDisplayState
+        return VStack(spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: state.icon)
+                    .font(.system(.subheadline, weight: .medium))
+                Text(state.displayName)
+                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .semibold))
+            }
+            .foregroundStyle(state.color)
+
+            Text(state.emotionalLabel)
+                .font(.system(.caption, design: AppTheme.fontFamily))
+                .foregroundStyle(.white.opacity(0.6))
+        }
+        .padding(.horizontal, AppTheme.Spacing.md)
+        .padding(.vertical, AppTheme.Spacing.sm)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: AppTheme.Radius.md))
+        .environment(\.colorScheme, .dark)
+    }
+
+    // MARK: - Progress Ring
+
+    private var bloomProgressRing: some View {
+        GeometryReader { geo in
+            let ringSize = min(geo.size.width, geo.size.height) * 0.85
+            let ringRadius = ringSize / 2
+
+            ZStack {
+                // Background ring
+                Circle()
+                    .stroke(Color.white.opacity(0.08), lineWidth: 3)
+                    .frame(width: ringSize, height: ringSize)
+
+                // Progress arc
+                Circle()
+                    .trim(from: 0, to: holdProgress)
+                    .stroke(
+                        currentDisplayState.color,
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                    )
+                    .frame(width: ringSize, height: ringSize)
+                    .rotationEffect(.degrees(-90))
+
+                // Tick marks at state thresholds
+                ForEach(BloomState.allCases) { state in
+                    Circle()
+                        .fill(holdProgress >= state.bloomAmount
+                              ? state.color
+                              : Color.white.opacity(0.15))
+                        .frame(width: 8, height: 8)
+                        .offset(y: -ringRadius)
+                        .rotationEffect(.degrees(Double(state.bloomAmount) * 360 - 90))
+                }
+            }
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
         }
     }
 }
