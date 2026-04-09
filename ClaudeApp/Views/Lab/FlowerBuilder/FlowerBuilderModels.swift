@@ -218,7 +218,7 @@ struct FlowerGeometry: Equatable {
 // MARK: - Flower Preset
 
 enum FlowerPreset: String, CaseIterable, Identifiable {
-    case rose, lotus, dahlia, lily, cosmos, forgetMeNot, peony, sunflower
+    case rose, lotus, dahlia, lily, cosmos, forgetMeNot, peony, sunflower, cherryBlossom
 
     var id: String { rawValue }
 
@@ -232,6 +232,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: "Forget-Me-Not"
         case .peony: "Peony"
         case .sunflower: "Sunflower"
+        case .cherryBlossom: "Cherry Blossom"
         }
     }
 
@@ -245,6 +246,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: "star.fill"
         case .peony: "cloud.fill"
         case .sunflower: "sun.min.fill"
+        case .cherryBlossom: "leaf.fill"
         }
     }
 
@@ -258,6 +260,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: FlowerColor.midnight.color
         case .peony: FlowerColor.rose.color
         case .sunflower: FlowerColor.golden.color
+        case .cherryBlossom: FlowerColor.blush.color
         }
     }
 
@@ -271,6 +274,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: .round // perfectly round petals
         case .peony: .peony
         case .sunflower: .dahlia  // narrow tapered tube = ray petals
+        case .cherryBlossom: .cherryBlossom
         }
     }
 
@@ -284,6 +288,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: .tulip
         case .peony: .lotus
         case .sunflower: .feather
+        case .cherryBlossom: .tulip  // fallback (count=0)
         }
     }
 
@@ -297,6 +302,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: .corona      // white star corona
         case .peony: .pollenCloud   // hidden stamens
         case .sunflower: .pollenCloud
+        case .cherryBlossom: .sunburst  // prominent radiating stamens
         }
     }
 
@@ -310,6 +316,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: .smooth // simple center
         case .peony: .swirl
         case .sunflower: .seedSpiral
+        case .cherryBlossom: .smooth
         }
     }
 
@@ -323,6 +330,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: .lavender // brighter blue
         case .peony: .rose
         case .sunflower: .sunYellow
+        case .cherryBlossom: .blush
         }
     }
 
@@ -336,6 +344,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: .lavender
         case .peony: .blush
         case .sunflower: .terracotta
+        case .cherryBlossom: .ivory
         }
     }
 
@@ -345,6 +354,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .dahlia: .golden
         case .forgetMeNot: .ivory   // white eye ring
         case .sunflower: .terracotta
+        case .cherryBlossom: .golden  // classic golden stamens
         }
     }
 
@@ -358,6 +368,7 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
         case .forgetMeNot: .golden // yellow center
         case .peony: .golden       // golden if visible
         case .sunflower: .umber    // dark brown seed disc
+        case .cherryBlossom: .sage  // green pistil
         }
     }
 
@@ -411,6 +422,12 @@ enum FlowerPreset: String, CaseIterable, Identifiable {
                            petalWidth: 0.45, innerWidth: 0.35,
                            centerScale: 0.32, stamenScale: 0.18,
                            outerGradientStrength: 0, innerGradientStrength: 0)
+        case .cherryBlossom:
+            // 5 broad notched petals, no inner layer, prominent stamens
+            FlowerGeometry(outerCount: 5, backCount: 5, innerCount: 0,
+                           petalWidth: 0.85, innerWidth: 0.50,
+                           centerScale: 0.10, stamenScale: 0.22,
+                           outerGradientStrength: 0, innerGradientStrength: 0)
         }
     }
 }
@@ -425,6 +442,7 @@ enum OuterPetalDesign: String, CaseIterable, Identifiable {
     case heartleaf
     case cosmos
     case round
+    case cherryBlossom
 
     var id: String { rawValue }
 
@@ -437,6 +455,7 @@ enum OuterPetalDesign: String, CaseIterable, Identifiable {
         case .heartleaf: "Heartleaf"
         case .cosmos: "Cosmos"
         case .round: "Round"
+        case .cherryBlossom: "Cherry Blossom"
         }
     }
 }

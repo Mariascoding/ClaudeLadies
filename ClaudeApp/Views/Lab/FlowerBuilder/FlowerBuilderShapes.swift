@@ -469,6 +469,78 @@ struct CosmosPetalShape: Shape {
     }
 }
 
+/// Cherry Blossom — broad rounded petal with shallow V-notch at the tip (iconic sakura silhouette)
+struct CherryBlossomPetalShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width
+        let h = rect.height
+        let midX = w / 2
+
+        var path = Path()
+        path.move(to: CGPoint(x: midX, y: h))
+
+        // Right side — narrow base curves outward to broad lobe, meets notch at top
+        // Seg 1: base widens smoothly
+        path.addCurve(
+            to: CGPoint(x: midX + w * 0.46, y: h * 0.40),
+            control1: CGPoint(x: midX + w * 0.10, y: h * 0.85),
+            control2: CGPoint(x: midX + w * 0.50, y: h * 0.60)
+        )
+        // Seg 2: broad right lobe rounds up toward the top
+        path.addCurve(
+            to: CGPoint(x: midX + w * 0.20, y: h * 0.04),
+            control1: CGPoint(x: midX + w * 0.44, y: h * 0.20),
+            control2: CGPoint(x: midX + w * 0.36, y: h * 0.04)
+        )
+        // Seg 3: right lobe curves down into the V-notch
+        path.addCurve(
+            to: CGPoint(x: midX, y: h * 0.08),
+            control1: CGPoint(x: midX + w * 0.12, y: h * 0.02),
+            control2: CGPoint(x: midX + w * 0.04, y: h * 0.06)
+        )
+
+        // Left side — mirror
+        // Seg 4: left lobe rises from notch
+        path.addCurve(
+            to: CGPoint(x: midX - w * 0.20, y: h * 0.04),
+            control1: CGPoint(x: midX - w * 0.04, y: h * 0.06),
+            control2: CGPoint(x: midX - w * 0.12, y: h * 0.02)
+        )
+        // Seg 5: broad left lobe rounds down
+        path.addCurve(
+            to: CGPoint(x: midX - w * 0.46, y: h * 0.40),
+            control1: CGPoint(x: midX - w * 0.36, y: h * 0.04),
+            control2: CGPoint(x: midX - w * 0.44, y: h * 0.20)
+        )
+        // Seg 6: narrows back to base
+        path.addCurve(
+            to: CGPoint(x: midX, y: h),
+            control1: CGPoint(x: midX - w * 0.50, y: h * 0.60),
+            control2: CGPoint(x: midX - w * 0.10, y: h * 0.85)
+        )
+
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Central midrib vein for cherry blossom petals
+struct CherryBlossomVeinShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let h = rect.height
+        let midX = rect.width / 2
+
+        var path = Path()
+        path.move(to: CGPoint(x: midX, y: h))
+        path.addCurve(
+            to: CGPoint(x: midX, y: h * 0.10),
+            control1: CGPoint(x: midX, y: h * 0.60),
+            control2: CGPoint(x: midX, y: h * 0.30)
+        )
+        return path
+    }
+}
+
 // MARK: - Inner Petal Shapes
 
 /// Tulip — cupped, flaring outward at top
@@ -1642,6 +1714,22 @@ extension OuterPetalDesign {
                             endPoint: .top
                         ),
                         lineWidth: 1.2
+                    )
+                    .frame(width: size.width, height: size.height)
+            }
+        case .cherryBlossom:
+            ZStack {
+                CherryBlossomPetalShape().fill(color)
+                    .overlay(CherryBlossomPetalShape().stroke(strokeStyle, lineWidth: strokeWidth))
+                    .frame(width: size.width, height: size.height)
+                CherryBlossomVeinShape()
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.3), Color.white.opacity(0)],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        ),
+                        lineWidth: 0.8
                     )
                     .frame(width: size.width, height: size.height)
             }
