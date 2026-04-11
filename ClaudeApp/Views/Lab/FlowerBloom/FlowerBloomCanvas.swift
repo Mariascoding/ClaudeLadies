@@ -9,6 +9,7 @@ private final class FlowerBloomHapticsEngine {
     private let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
 
     private var firedStates: Set<Int> = []
+    private var heartbeatAccumulator: CGFloat = 0
 
     private static let stateThresholds: [(state: Int, progress: CGFloat, style: HapticStyle)] = [
         (1, 0.15, .light(0.5)),
@@ -50,8 +51,24 @@ private final class FlowerBloomHapticsEngine {
         }
     }
 
+    /// Fires rhythmic light impacts that speed up + intensify with progress.
+    /// Creates a heartbeat-like sensation that makes the bloom feel alive.
+    func tickHeartbeat(progress: CGFloat, dt: CGFloat) {
+        heartbeatAccumulator += dt
+        let p = max(0, min(progress, 1))
+        // Interval shrinks 0.85s → 0.25s as progress grows
+        let interval: CGFloat = 0.85 - p * 0.6
+        guard heartbeatAccumulator >= interval else { return }
+        heartbeatAccumulator = 0
+        // Intensity ramps 0.25 → 0.9
+        let intensity: CGFloat = 0.25 + p * 0.65
+        lightGenerator.impactOccurred(intensity: intensity)
+        lightGenerator.prepare()
+    }
+
     func reset() {
         firedStates.removeAll()
+        heartbeatAccumulator = 0
     }
 }
 
@@ -156,6 +173,14 @@ struct FlowerBloomCanvas: View {
     @Binding var holdProgress: CGFloat
     @Binding var bloomState: BloomState
 
+    /// When false, the dark moonlit background layer is skipped so the canvas
+    /// can be embedded inline against a parent's background.
+    var showBackground: Bool = true
+
+    /// When false, the canvas's drag-to-bloom gesture is disabled so the
+    /// canvas can be driven purely by an external `holdProgress` timeline.
+    var interactive: Bool = true
+
     @State private var breathPhase: CGFloat = 0
     @State private var dancePhase: CGFloat = 0
     @State private var colorPhase: CGFloat = 0
@@ -180,7 +205,9 @@ struct FlowerBloomCanvas: View {
             let breathScale: CGFloat = 1.0 + sin(breathPhase) * 0.015
 
             ZStack {
-                bgColor.ignoresSafeArea()
+                if showBackground {
+                    bgColor.ignoresSafeArea()
+                }
 
                 glowLayer(size: size, center: center, dance: dance)
 
@@ -208,6 +235,7 @@ struct FlowerBloomCanvas: View {
                         haptics.reset()
                     }
             )
+            .allowsHitTesting(interactive)
         }
         .onReceive(timer) { _ in
             let dt: CGFloat = 1.0 / 60.0
@@ -218,6 +246,7 @@ struct FlowerBloomCanvas: View {
             if isHolding {
                 holdProgress = min(holdProgress + dt / bloomDuration, 1.0)
                 haptics.update(progress: holdProgress)
+                haptics.tickHeartbeat(progress: holdProgress, dt: dt)
             }
         }
         .onChange(of: isHolding) { _, holding in
