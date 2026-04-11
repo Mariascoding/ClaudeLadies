@@ -113,6 +113,12 @@ struct AutoFlowerCreatorView: View {
     @State private var cyclePosition: CycleCalculator.CyclePosition? = nil
     @State private var dailyGuidance: DailyGuidance? = nil
     @State private var showNervousSystem: Bool = false
+    @State private var toastMessage: String? = nil
+    @State private var toastTask: Task<Void, Never>? = nil
+
+    // Mini-flower hold tracking (tap vs press-and-hold differentiation)
+    @State private var miniHoldStartTime: Date? = nil
+    @State private var miniHoldResetTask: Task<Void, Never>? = nil
 
     @Environment(\.modelContext) private var modelContext
 
@@ -148,18 +154,31 @@ struct AutoFlowerCreatorView: View {
 
             if phase.isNoted,
                let config = generated?.config {
-                MiniFlowerWidget(
-                    config: config,
-                    isHolding: $isHolding,
-                    holdProgress: $holdProgress,
-                    bloomState: $bloomState,
-                    onTap: {
-                        withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
-                            showNervousSystem.toggle()
-                        }
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    if let message = toastMessage {
+                        Text(message)
+                            .font(.system(.footnote, design: .rounded, weight: .medium))
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                            .padding(.horizontal, AppTheme.Spacing.md)
+                            .padding(.vertical, AppTheme.Spacing.xs)
+                            .background(
+                                Capsule()
+                                    .fill(Color.appWarmWhite.opacity(0.95))
+                                    .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+                            )
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            .id(message)
                     }
-                )
+
+                    MiniFlowerWidget(
+                        config: config,
+                        isHolding: $isHolding,
+                        holdProgress: $holdProgress,
+                        bloomState: $bloomState
+                    )
+                }
                 .padding(.bottom, AppTheme.Spacing.xl)
+                .animation(.easeInOut(duration: 0.35), value: toastMessage)
                 .transition(
                     .asymmetric(
                         insertion: .opacity.combined(with: .move(edge: .top)),
@@ -179,10 +198,18 @@ struct AutoFlowerCreatorView: View {
             interactiveTransitionTask = nil
             noteStateTask?.cancel()
             noteStateTask = nil
+            toastTask?.cancel()
+            toastTask = nil
+            miniHoldResetTask?.cancel()
+            miniHoldResetTask = nil
         }
         .onChange(of: isHolding) { oldValue, newValue in
             if phase.isInteractive, oldValue, !newValue {
                 noteEmotionalState()
+                return
+            }
+            if phase.isNoted {
+                handleMiniFlowerHoldChange(oldValue: oldValue, newValue: newValue)
             }
         }
     }
@@ -916,6 +943,92 @@ struct AutoFlowerCreatorView: View {
             notedBloomState = captured
             phase = .noted
         }
+
+        scheduleHoldToast()
+    }
+
+    /// Briefly surfaces a "Hold to update state" hint beneath the mini
+    /// flower after the shrink animation settles, then fades it out.
+    private func scheduleHoldToast() {
+        toastTask?.cancel()
+        toastTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            if Task.isCancelled { return }
+            showToast("Hold to update state", duration: 2.6)
+        }
+    }
+
+    /// Shows a small toast above the mini flower for the given duration.
+    private func showToast(_ message: String, duration: TimeInterval) {
+        toastTask?.cancel()
+        toastTask = Task { @MainActor in
+            withAnimation(.easeInOut(duration: 0.35)) {
+                toastMessage = message
+            }
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            if Task.isCancelled { return }
+            withAnimation(.easeInOut(duration: 0.4)) {
+                toastMessage = nil
+            }
+        }
+    }
+
+    // MARK: - Mini Flower Hold Handling
+    //
+    // The mini flower is re-interactive in the `.noted` phase: a quick tap
+    // toggles the nervous system support section, while a press-and-hold
+    // resets the bloom to bud and lets the user grow it again to a new
+    // state. We differentiate the two by timing the hold — anything under
+    // ~250 ms is treated as a tap, otherwise the flower resets after a
+    // short delay (so a tap never accidentally collapses the bloom).
+
+    private func handleMiniFlowerHoldChange(oldValue: Bool, newValue: Bool) {
+        if !oldValue && newValue {
+            // Press began
+            miniHoldStartTime = Date()
+            // Dismiss any lingering hint toast
+            if toastMessage != nil {
+                toastTask?.cancel()
+                withAnimation(.easeOut(duration: 0.2)) { toastMessage = nil }
+            }
+            miniHoldResetTask?.cancel()
+            miniHoldResetTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                if Task.isCancelled { return }
+                // Real hold — reset to bud so the flower visibly grows
+                // again from scratch while the finger is still down.
+                withAnimation(.easeOut(duration: 0.3)) {
+                    holdProgress = Self.restingBudProgress
+                    bloomState = .bud
+                }
+            }
+        } else if oldValue && !newValue {
+            // Press released
+            let elapsed = miniHoldStartTime.map { Date().timeIntervalSince($0) } ?? 0
+            miniHoldStartTime = nil
+            miniHoldResetTask?.cancel()
+            miniHoldResetTask = nil
+
+            if elapsed < 0.25 {
+                // Quick tap — toggle the nervous system support section
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
+                    showNervousSystem.toggle()
+                }
+            } else {
+                // Real hold — snap (FlowerBloomCanvas already did), update
+                // the noted state, and confirm with a brief toast.
+                updateNotedState()
+            }
+        }
+    }
+
+    /// Updates the noted bloom state + daily guidance to whatever the
+    /// user just held the flower to, and surfaces a confirmation toast.
+    private func updateNotedState() {
+        let snapped = BloomState.closest(to: holdProgress)
+        notedBloomState = snapped
+        prepareDailyContext(for: snapped)
+        showToast("New state noted", duration: 1.8)
     }
 
     /// Computes cycle position + daily guidance from the entered period
@@ -968,6 +1081,11 @@ struct AutoFlowerCreatorView: View {
         interactiveTransitionTask = nil
         noteStateTask?.cancel()
         noteStateTask = nil
+        toastTask?.cancel()
+        toastTask = nil
+        miniHoldResetTask?.cancel()
+        miniHoldResetTask = nil
+        miniHoldStartTime = nil
         withAnimation(.spring(response: 0.7, dampingFraction: 0.78)) {
             phase = .input
             generated = nil
@@ -979,6 +1097,7 @@ struct AutoFlowerCreatorView: View {
             cyclePosition = nil
             dailyGuidance = nil
             showNervousSystem = false
+            toastMessage = nil
         }
     }
 
@@ -1039,34 +1158,29 @@ private struct MiniFlowerWidget: View {
     @Binding var isHolding: Bool
     @Binding var holdProgress: CGFloat
     @Binding var bloomState: BloomState
-    let onTap: () -> Void
 
     @State private var pulse: CGFloat = 1.0
 
     var body: some View {
-        VStack(spacing: 0) {
-            FlowerBloomCanvas(
-                outerDesign: config.outerDesign,
-                innerDesign: config.innerDesign,
-                stamenDesign: config.stamenDesign,
-                centerDesign: config.centerDesign,
-                outerColor: config.outerColor,
-                innerColor: config.innerColor,
-                stamenColor: config.stamenColor,
-                centerColor: config.centerColor,
-                geometry: config.geometry,
-                isHolding: $isHolding,
-                holdProgress: $holdProgress,
-                bloomState: $bloomState,
-                showBackground: false,
-                interactive: false
-            )
-            .frame(width: 76, height: 76)
-            .allowsHitTesting(false)
-        }
-        .scaleEffect(pulse)
-        .contentShape(Circle())
-        .onTapGesture { onTap() }
+        FlowerBloomCanvas(
+            outerDesign: config.outerDesign,
+            innerDesign: config.innerDesign,
+            stamenDesign: config.stamenDesign,
+            centerDesign: config.centerDesign,
+            outerColor: config.outerColor,
+            innerColor: config.innerColor,
+            stamenColor: config.stamenColor,
+            centerColor: config.centerColor,
+            geometry: config.geometry,
+            isHolding: $isHolding,
+            holdProgress: $holdProgress,
+            bloomState: $bloomState,
+            showBackground: false,
+            interactive: true
+        )
+        .frame(width: 76, height: 76)
+        .scaleEffect(isHolding ? 1.0 : pulse)
+        .animation(.easeInOut(duration: 0.25), value: isHolding)
         .onAppear {
             pulse = 1.0
             withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
