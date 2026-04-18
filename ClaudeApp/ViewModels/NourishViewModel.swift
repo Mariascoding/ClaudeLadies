@@ -4,10 +4,13 @@ import SwiftData
 @Observable
 final class NourishViewModel {
     var dailyPlan: DailyNutritionPlan?
+    var cyclePlan: DailyNutritionPlan?
     var selectedProtocol: NutritionProtocol?
     var wellnessGoal: WellnessGoal?
     var cyclePosition: CycleCalculator.CyclePosition?
     var nutritionLog: NutritionLog?
+    var selectedSymptoms: [Symptom] = []
+    var symptomWisdomCards: [SymptomWisdom] = []
 
     let notificationManager = NourishNotificationManager()
 
@@ -30,7 +33,7 @@ final class NourishViewModel {
         guard let lastPeriodStart = profile.lastPeriodStartDate else { return }
 
         wellnessGoal = profile.wellnessGoal
-        selectedProtocol = profile.nutritionProtocol
+        selectedProtocol = profile.nutritionProtocol ?? .daoSt
 
         let position = CycleCalculator.currentPosition(
             lastPeriodStart: lastPeriodStart,
@@ -40,6 +43,7 @@ final class NourishViewModel {
         self.cyclePosition = position
 
         generatePlan(position: position)
+        generateCyclePlan(position: position)
         loadOrCreateTodayLog()
         rescheduleNotificationsIfNeeded()
     }
@@ -71,9 +75,13 @@ final class NourishViewModel {
         return timeBlock.allItems.filter { nutritionLog.hasCompleted($0.id) }.count
     }
 
+    var activePlan: DailyNutritionPlan? {
+        dailyPlan ?? cyclePlan
+    }
+
     var totalCompletedCount: Int {
-        guard let dailyPlan, let nutritionLog else { return 0 }
-        return dailyPlan.timeBlocks
+        guard let plan = activePlan, let nutritionLog else { return 0 }
+        return plan.timeBlocks
             .flatMap(\.allItems)
             .filter { nutritionLog.hasCompleted($0.id) }
             .count
@@ -82,15 +90,50 @@ final class NourishViewModel {
     // MARK: - Notifications
 
     private func rescheduleNotificationsIfNeeded() {
-        guard let dailyPlan else { return }
+        guard let plan = activePlan else { return }
         let completedIDs = Set(nutritionLog?.completedItemsRaw ?? [])
-        notificationManager.rescheduleNotifications(plan: dailyPlan, completedItemIDs: completedIDs)
+        notificationManager.rescheduleNotifications(plan: plan, completedItemIDs: completedIDs)
+    }
+
+    // MARK: - Symptom Wisdom
+
+    func toggleSymptom(_ symptom: Symptom) {
+        if let index = selectedSymptoms.firstIndex(of: symptom) {
+            selectedSymptoms.remove(at: index)
+        } else {
+            selectedSymptoms.append(symptom)
+        }
+        updateWisdomCards()
+    }
+
+    func isSymptomSelected(_ symptom: Symptom) -> Bool {
+        selectedSymptoms.contains(symptom)
+    }
+
+    private func updateWisdomCards() {
+        guard let phase = cyclePosition?.phase else {
+            symptomWisdomCards = []
+            return
+        }
+        symptomWisdomCards = selectedSymptoms.map { symptom in
+            PeriodSymptomWisdom.wisdom(for: symptom, phase: phase)
+        }
     }
 
     // MARK: - Private
 
+    private func generateCyclePlan(position: CycleCalculator.CyclePosition) {
+        let goal = wellnessGoal ?? .healthyCycle
+        cyclePlan = CycleNourishContent.dailyPlan(
+            phase: position.phase,
+            dayInPhase: position.dayInPhase,
+            goal: goal
+        )
+    }
+
     private func generatePlan(position: CycleCalculator.CyclePosition) {
         guard let selectedProtocol,
+              selectedProtocol != .daoSt,
               let goal = wellnessGoal else {
             dailyPlan = nil
             return

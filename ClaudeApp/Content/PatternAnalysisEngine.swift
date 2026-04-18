@@ -448,7 +448,7 @@ enum PatternAnalysisEngine {
                     protocolScores[coCluster.cluster.primaryProtocol, default: 0] += score
                 }
                 // Remaining 70% distributed evenly across all protocols
-                let evenScore = Double(result.totalOccurrences) * result.strength.multiplier * 0.7 / 3.0
+                let evenScore = Double(result.totalOccurrences) * result.strength.multiplier * 0.7 / Double(NutritionProtocol.allCases.count)
                 for proto in NutritionProtocol.allCases {
                     protocolScores[proto, default: 0] += evenScore
                 }
@@ -525,6 +525,11 @@ enum PatternAnalysisEngine {
                 return "DAO Support can help manage histamine-related symptoms in your pattern."
             }
             return "Your \(clusterNames.joined(separator: " and ")) symptoms suggest DAO Support could help improve histamine tolerance."
+        case .hairHealth:
+            if clusterNames.isEmpty {
+                return "Hair Health can support follicle and hormonal balance based on your symptom patterns."
+            }
+            return "Your \(clusterNames.joined(separator: " and ")) symptoms suggest Hair Health could help nourish your follicles and rebuild density."
         }
     }
 

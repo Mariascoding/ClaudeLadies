@@ -6,6 +6,7 @@ struct NourishView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = NourishViewModel()
     @State private var showRitualSuggestion = false
+    @State private var showHairHealthInfo = false
 
     var body: some View {
         NavigationStack {
@@ -22,15 +23,16 @@ struct NourishView: View {
                         .padding(.horizontal, AppTheme.Spacing.md)
                     }
 
-                    if let plan = viewModel.dailyPlan,
-                       let position = viewModel.cyclePosition {
+                    if let position = viewModel.cyclePosition,
+                       viewModel.selectedProtocol == .daoSt {
+                        cycleNourishSection(position: position)
+                    } else if let plan = viewModel.dailyPlan,
+                              let position = viewModel.cyclePosition {
                         DailyTimelineView(
                             plan: plan,
                             phase: position.phase,
                             viewModel: viewModel
                         )
-                    } else if viewModel.selectedProtocol == nil {
-                        noProtocolPrompt
                     }
 
                     Spacer(minLength: AppTheme.Spacing.xxl)
@@ -50,6 +52,9 @@ struct NourishView: View {
                 viewModel.refresh()
                 Task { await viewModel.notificationManager.checkPermissionStatus() }
             }
+        }
+        .sheet(isPresented: $showHairHealthInfo) {
+            HairHealthInfoSheet()
         }
         .alert("Enable ritual reminders?", isPresented: $showRitualSuggestion) {
             Button("Enable") {
@@ -102,7 +107,7 @@ struct NourishView: View {
         return Button {
             withAnimation(AppTheme.gentleAnimation) {
                 if isSelected {
-                    viewModel.selectProtocol(nil)
+                    viewModel.selectProtocol(.daoSt)
                 } else {
                     viewModel.selectProtocol(nutritionProtocol)
                 }
@@ -123,6 +128,18 @@ struct NourishView: View {
             .padding(.vertical, AppTheme.Spacing.md)
             .background(isSelected ? nutritionProtocol.color : nutritionProtocol.color.opacity(0.08))
             .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.md))
+            .overlay(alignment: .topTrailing) {
+                if nutritionProtocol == .hairHealth {
+                    Button {
+                        showHairHealthInfo = true
+                    } label: {
+                        Image(systemName: "info.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(isSelected ? .white.opacity(0.8) : nutritionProtocol.color.opacity(0.6))
+                    }
+                    .padding(4)
+                }
+            }
         }
     }
 
@@ -138,26 +155,141 @@ struct NourishView: View {
         showRitualSuggestion = true
     }
 
-    // MARK: - Empty State
+    // MARK: - Cycle Nourish (No Protocol)
 
-    private var noProtocolPrompt: some View {
-        VStack(spacing: AppTheme.Spacing.lg) {
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.appSage.opacity(0.5))
+    private func cycleNourishSection(position: CycleCalculator.CyclePosition) -> some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            if let cyclePlan = viewModel.cyclePlan {
+                DailyTimelineView(
+                    plan: cyclePlan,
+                    phase: position.phase,
+                    viewModel: viewModel
+                )
+            }
 
-            Text("Choose a Protocol")
-                .warmTitle()
+            // Symptom check-in
+            symptomCheckinCard(phase: position.phase)
 
-            Text("Select a nutrition protocol above to receive daily food, supplement, and timing guidance tailored to your cycle phase.")
-                .guidanceText()
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, AppTheme.Spacing.lg)
-
-            Text("Your body knows the way.\nLet food be your gentle guide.")
-                .affirmationStyle()
-                .multilineTextAlignment(.center)
+            // Wisdom cards for selected symptoms
+            ForEach(viewModel.symptomWisdomCards) { card in
+                symptomWisdomCard(card, phase: position.phase)
+            }
         }
-        .padding(.top, AppTheme.Spacing.xxl)
+    }
+
+    // MARK: - Symptom Check-in
+
+    private func symptomCheckinCard(phase: CyclePhase) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "heart.text.clipboard")
+                    .foregroundStyle(phase.accentColor)
+                Text("How Do You Feel Today?")
+                    .warmHeadline()
+            }
+
+            Text("Tap any symptom for ancient wisdom on what it means, why it matters, and what might help.")
+                .captionStyle()
+
+            let commonSymptoms = PeriodSymptomWisdom.commonSymptoms(for: phase)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: AppTheme.Spacing.sm) {
+                ForEach(commonSymptoms) { symptom in
+                    let isSelected = viewModel.isSymptomSelected(symptom)
+                    Button {
+                        withAnimation(AppTheme.gentleAnimation) {
+                            viewModel.toggleSymptom(symptom)
+                        }
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text(symptom.emoji)
+                                .font(.title3)
+                            Text(symptom.displayName)
+                                .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
+                                .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppTheme.Spacing.sm)
+                        .background(isSelected ? phase.accentColor : phase.accentColor.opacity(0.08))
+                        .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.sm))
+                    }
+                }
+            }
+        }
+        .warmCard()
+        .padding(.horizontal, AppTheme.Spacing.md)
+    }
+
+    // MARK: - Symptom Wisdom Card
+
+    private func symptomWisdomCard(_ wisdom: SymptomWisdom, phase: CyclePhase) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            // Header
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Text(wisdom.symptom.emoji)
+                    .font(.title2)
+                Text(wisdom.symptom.displayName)
+                    .warmHeadline()
+                Spacer()
+            }
+
+            // What it means
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                Text("What It Means")
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .semibold))
+                    .foregroundStyle(phase.accentColor)
+                Text(wisdom.whatItMeans)
+                    .guidanceText()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Why it matters
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                Text("Why It Matters")
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .semibold))
+                    .foregroundStyle(phase.accentColor)
+                Text(wisdom.whyItMatters)
+                    .guidanceText()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // What helps
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                Text("What Might Help")
+                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .semibold))
+                    .foregroundStyle(phase.accentColor)
+
+                ForEach(wisdom.whatHelps, id: \.self) { tip in
+                    HStack(alignment: .top, spacing: AppTheme.Spacing.sm) {
+                        Image(systemName: "leaf.fill")
+                            .font(.caption2)
+                            .foregroundStyle(phase.accentColor.opacity(0.6))
+                            .padding(.top, 3)
+                        Text(tip)
+                            .guidanceText()
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+
+            // Warm remedy highlight
+            HStack(alignment: .top, spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "cup.and.heat.waves.fill")
+                    .foregroundStyle(phase.accentColor)
+                    .font(.body)
+                Text(wisdom.warmRemedy)
+                    .font(.system(.caption, design: AppTheme.fontFamilySerif))
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(AppTheme.Spacing.sm)
+            .background(phase.accentColor.opacity(0.06))
+            .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.sm))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .warmCard()
+        .padding(.horizontal, AppTheme.Spacing.md)
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 }

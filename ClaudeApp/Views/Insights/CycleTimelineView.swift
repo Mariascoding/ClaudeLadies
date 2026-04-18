@@ -27,6 +27,9 @@ struct CycleTimelineView: View {
                                     Text(boundary.phase.innerSeason.replacingOccurrences(of: "Inner ", with: ""))
                                         .font(.system(size: 9, weight: .medium, design: AppTheme.fontFamily))
                                         .foregroundStyle(Color.appSoftBrown.opacity(0.7))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.7)
+                                        .padding(.horizontal, 2)
                                 )
                         }
                     }

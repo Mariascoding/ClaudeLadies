@@ -119,6 +119,8 @@ enum NutritionContent {
             cellDetoxPlan(phase: phase, goal: goal)
         case .daoSt:
             daoSupportPlan(phase: phase, goal: goal)
+        case .hairHealth:
+            hairHealthPlan(phase: phase, goal: goal)
         }
     }
 
@@ -133,14 +135,14 @@ enum NutritionContent {
                 todayFocus: "Gentle nourishment with flax and pumpkin seeds to support estrogen during your inner winter. \(goalNote)",
                 morning: TimeBlock(
                     timeOfDay: .morning,
-                    foods: items(.morning, .food, ["Ground flaxseeds (1 tbsp)", "Warm oatmeal with cinnamon"]),
+                    foods: items(.morning, .food, ["1 tbsp ground flaxseeds", "Warm oatmeal with cinnamon"]),
                     supplements: items(.morning, .supplement, ["Omega-3", "Vitamin D"]),
                     rituals: items(.morning, .ritual, ["Warm lemon water on waking"])
                 ),
                 afternoon: TimeBlock(
                     timeOfDay: .afternoon,
-                    foods: items(.afternoon, .food, ["Pumpkin seeds (1 tbsp)", "Iron-rich leafy greens salad"]),
-                    supplements: items(.afternoon, .supplement, ["Iron (if needed)"]),
+                    foods: items(.afternoon, .food, ["1 tbsp pumpkin seeds", "Iron-rich leafy greens salad"]),
+                    supplements: items(.afternoon, .supplement, ["Iron if needed"]),
                     rituals: items(.afternoon, .ritual, ["Gentle walk after lunch"])
                 ),
                 evening: TimeBlock(
@@ -158,13 +160,13 @@ enum NutritionContent {
                 todayFocus: "Continue flax and pumpkin seeds as estrogen rises in your inner spring. \(goalNote)",
                 morning: TimeBlock(
                     timeOfDay: .morning,
-                    foods: items(.morning, .food, ["Ground flaxseeds (1 tbsp)", "Fresh berries and yogurt"]),
+                    foods: items(.morning, .food, ["1 tbsp ground flaxseeds", "Fresh berries and yogurt"]),
                     supplements: items(.morning, .supplement, ["B-complex", "Vitamin E"]),
                     rituals: items(.morning, .ritual, ["Morning smoothie ritual"])
                 ),
                 afternoon: TimeBlock(
                     timeOfDay: .afternoon,
-                    foods: items(.afternoon, .food, ["Pumpkin seeds (1 tbsp)", "Cruciferous vegetables"]),
+                    foods: items(.afternoon, .food, ["1 tbsp pumpkin seeds", "Cruciferous vegetables"]),
                     supplements: items(.afternoon, .supplement, ["Probiotic"]),
                     rituals: items(.afternoon, .ritual, ["Fermented food with lunch"])
                 ),
@@ -183,13 +185,13 @@ enum NutritionContent {
                 todayFocus: "Transition to sesame and sunflower seeds to support the progesterone shift. \(goalNote)",
                 morning: TimeBlock(
                     timeOfDay: .morning,
-                    foods: items(.morning, .food, ["Sesame seeds (1 tbsp)", "Antioxidant-rich berries"]),
+                    foods: items(.morning, .food, ["1 tbsp sesame seeds", "Antioxidant-rich berries"]),
                     supplements: items(.morning, .supplement, ["Vitamin C", "Zinc"]),
                     rituals: items(.morning, .ritual, ["Energizing breakfast within 1 hour of waking"])
                 ),
                 afternoon: TimeBlock(
                     timeOfDay: .afternoon,
-                    foods: items(.afternoon, .food, ["Sunflower seeds (1 tbsp)", "Fiber-rich vegetables"]),
+                    foods: items(.afternoon, .food, ["1 tbsp sunflower seeds", "Fiber-rich vegetables"]),
                     supplements: items(.afternoon, .supplement, ["Evening primrose oil"]),
                     rituals: items(.afternoon, .ritual, ["Balanced protein-rich lunch"])
                 ),
@@ -208,13 +210,13 @@ enum NutritionContent {
                 todayFocus: "Sesame and sunflower seeds to sustain progesterone through your inner autumn. \(goalNote)",
                 morning: TimeBlock(
                     timeOfDay: .morning,
-                    foods: items(.morning, .food, ["Sesame seeds (1 tbsp)", "Complex carb breakfast"]),
+                    foods: items(.morning, .food, ["1 tbsp sesame seeds", "Complex carb breakfast"]),
                     supplements: items(.morning, .supplement, ["Magnesium glycinate", "Vitamin B6"]),
                     rituals: items(.morning, .ritual, ["Eat within an hour of waking"])
                 ),
                 afternoon: TimeBlock(
                     timeOfDay: .afternoon,
-                    foods: items(.afternoon, .food, ["Sunflower seeds (1 tbsp)", "Magnesium-rich dark chocolate"]),
+                    foods: items(.afternoon, .food, ["1 tbsp sunflower seeds", "Magnesium-rich dark chocolate"]),
                     supplements: items(.afternoon, .supplement, ["Calcium"]),
                     rituals: items(.afternoon, .ritual, ["Steady blood sugar — don't skip meals"])
                 ),
@@ -264,7 +266,7 @@ enum NutritionContent {
                 ),
                 evening: TimeBlock(
                     timeOfDay: .evening,
-                    foods: items(.evening, .food, ["Gentle herbs (dandelion, nettle) tea", "Cooked warm vegetables"]),
+                    foods: items(.evening, .food, ["Dandelion and nettle tea", "Cooked warm vegetables"]),
                     supplements: items(.evening, .supplement, []),
                     rituals: items(.evening, .ritual, ["Epsom salt bath"])
                 ),
@@ -278,7 +280,7 @@ enum NutritionContent {
                 morning: TimeBlock(
                     timeOfDay: .morning,
                     foods: items(.morning, .food, ["Green smoothie with broccoli sprouts", "Cilantro"]),
-                    supplements: items(.morning, .supplement, ["DIM (diindolylmethane)", "B-complex"]),
+                    supplements: items(.morning, .supplement, ["DIM — diindolylmethane", "B-complex"]),
                     rituals: items(.morning, .ritual, ["Green juice or smoothie ritual"])
                 ),
                 afternoon: TimeBlock(
@@ -293,7 +295,7 @@ enum NutritionContent {
                     supplements: items(.evening, .supplement, []),
                     rituals: items(.evening, .ritual, ["Dry brushing before shower"])
                 ),
-                avoid: ["Xenoestrogens (plastics)", "Conventional produce (choose organic)", "Excess caffeine"],
+                avoid: ["Xenoestrogens from plastics", "Conventional produce — choose organic", "Excess caffeine"],
                 rationale: "Rising estrogen needs healthy metabolism pathways. Cruciferous vegetables provide compounds like sulforaphane that support phase II liver detox."
             )
 
@@ -371,20 +373,20 @@ enum NutritionContent {
                 todayFocus: "Histamine levels peak during menstruation. Extra DAO support and low-histamine foods are key. \(goalNote)",
                 morning: TimeBlock(
                     timeOfDay: .morning,
-                    foods: items(.morning, .food, ["Fresh (not leftover) eggs", "Rice with pear"]),
-                    supplements: items(.morning, .supplement, ["DAO enzyme (before meals)", "Vitamin C"]),
-                    rituals: items(.morning, .ritual, ["Cook and eat fresh — no leftovers"])
+                    foods: items(.morning, .food, ["Eggs cooked to order", "Rice with pear"]),
+                    supplements: items(.morning, .supplement, ["DAO enzyme before meals", "Vitamin C"]),
+                    rituals: items(.morning, .ritual, ["Cook and eat fresh today — avoid leftovers"])
                 ),
                 afternoon: TimeBlock(
                     timeOfDay: .afternoon,
-                    foods: items(.afternoon, .food, ["Fresh chicken or turkey", "Quinoa and fresh vegetables"]),
+                    foods: items(.afternoon, .food, ["Chicken or turkey", "Quinoa and vegetables"]),
                     supplements: items(.afternoon, .supplement, ["Quercetin"]),
-                    rituals: items(.afternoon, .ritual, ["Prepare meals fresh — avoid storing"])
+                    rituals: items(.afternoon, .ritual, ["Eat slowly — rest and digest"])
                 ),
                 evening: TimeBlock(
                     timeOfDay: .evening,
-                    foods: items(.evening, .food, ["Fresh rice and vegetables", "Blueberries"]),
-                    supplements: items(.evening, .supplement, ["DAO enzyme (before dinner)"]),
+                    foods: items(.evening, .food, ["Rice and steamed vegetables", "Blueberries"]),
+                    supplements: items(.evening, .supplement, ["DAO enzyme before dinner"]),
                     rituals: items(.evening, .ritual, ["Early, light dinner"])
                 ),
                 avoid: ["Aged cheeses", "Fermented foods", "Wine and beer", "Canned fish", "Leftovers"],
@@ -396,21 +398,21 @@ enum NutritionContent {
                 todayFocus: "Histamine calms as estrogen stabilizes. Gradually reintroduce some foods while maintaining DAO support. \(goalNote)",
                 morning: TimeBlock(
                     timeOfDay: .morning,
-                    foods: items(.morning, .food, ["Fresh protein and sweet potato", "Apple slices"]),
+                    foods: items(.morning, .food, ["Protein with sweet potato", "Apple slices"]),
                     supplements: items(.morning, .supplement, ["DAO enzyme", "Vitamin B6"]),
                     rituals: items(.morning, .ritual, ["Note any new food reactions"])
                 ),
                 afternoon: TimeBlock(
                     timeOfDay: .afternoon,
-                    foods: items(.afternoon, .food, ["Fresh meats and fish", "Leafy greens"]),
+                    foods: items(.afternoon, .food, ["Lean meats or fish", "Leafy greens"]),
                     supplements: items(.afternoon, .supplement, ["Copper"]),
                     rituals: items(.afternoon, .ritual, ["Test tolerance with small portions"])
                 ),
                 evening: TimeBlock(
                     timeOfDay: .evening,
-                    foods: items(.evening, .food, ["Fresh vegetables and rice", "Watermelon or pear"]),
-                    supplements: items(.evening, .supplement, ["DAO enzyme (before dinner)"]),
-                    rituals: items(.evening, .ritual, ["Prioritize freshness in all meals"])
+                    foods: items(.evening, .food, ["Vegetables and rice", "Watermelon or pear"]),
+                    supplements: items(.evening, .supplement, ["DAO enzyme before dinner"]),
+                    rituals: items(.evening, .ritual, ["Prepare meals same-day when possible"])
                 ),
                 avoid: ["Aged and fermented foods", "Citrus fruits", "Tomatoes", "Shellfish"],
                 rationale: "As estrogen rises steadily, histamine levels become more predictable. Continue DAO support while gently testing your tolerance window."
@@ -421,20 +423,20 @@ enum NutritionContent {
                 todayFocus: "Estrogen peaks — watch for histamine flare. Keep DAO support strong and meals simple. \(goalNote)",
                 morning: TimeBlock(
                     timeOfDay: .morning,
-                    foods: items(.morning, .food, ["Fresh chicken or turkey", "Zucchini"]),
-                    supplements: items(.morning, .supplement, ["DAO enzyme (increase dose)", "Quercetin"]),
-                    rituals: items(.morning, .ritual, ["Simple, fresh meals only"])
+                    foods: items(.morning, .food, ["Chicken or turkey", "Zucchini"]),
+                    supplements: items(.morning, .supplement, ["DAO enzyme — consider increasing dose", "Quercetin"]),
+                    rituals: items(.morning, .ritual, ["Keep meals simple and low-histamine"])
                 ),
                 afternoon: TimeBlock(
                     timeOfDay: .afternoon,
-                    foods: items(.afternoon, .food, ["Rice noodles", "Squash and fresh herbs"]),
+                    foods: items(.afternoon, .food, ["Rice noodles", "Squash with herbs"]),
                     supplements: items(.afternoon, .supplement, ["Vitamin C"]),
                     rituals: items(.afternoon, .ritual, ["Avoid eating out — control ingredients"])
                 ),
                 evening: TimeBlock(
                     timeOfDay: .evening,
-                    foods: items(.evening, .food, ["Mango or pear", "Simple steamed vegetables"]),
-                    supplements: items(.evening, .supplement, ["DAO enzyme (before dinner)"]),
+                    foods: items(.evening, .food, ["Mango or pear", "Steamed vegetables"]),
+                    supplements: items(.evening, .supplement, ["DAO enzyme before dinner"]),
                     rituals: items(.evening, .ritual, ["Calm evening — stress raises histamine"])
                 ),
                 avoid: ["All fermented foods", "Aged meats", "Alcohol", "Vinegar-based dressings"],
@@ -446,23 +448,23 @@ enum NutritionContent {
                 todayFocus: "Progesterone rises and supports DAO production. A gentler window — but stay mindful as PMS approaches. \(goalNote)",
                 morning: TimeBlock(
                     timeOfDay: .morning,
-                    foods: items(.morning, .food, ["Root vegetables hash", "Fresh protein"]),
+                    foods: items(.morning, .food, ["Root vegetables hash", "Protein of choice"]),
                     supplements: items(.morning, .supplement, ["DAO enzyme", "Magnesium"]),
                     rituals: items(.morning, .ritual, ["Regular meals to support blood sugar"])
                 ),
                 afternoon: TimeBlock(
                     timeOfDay: .afternoon,
-                    foods: items(.afternoon, .food, ["Ginger and turmeric tea", "Fresh cooked lunch"]),
+                    foods: items(.afternoon, .food, ["Ginger and turmeric tea", "Warm cooked lunch"]),
                     supplements: items(.afternoon, .supplement, ["Vitamin B6"]),
-                    rituals: items(.afternoon, .ritual, ["Fresh preparation — no stored meals"])
+                    rituals: items(.afternoon, .ritual, ["Same-day preparation — avoid stored meals"])
                 ),
                 evening: TimeBlock(
                     timeOfDay: .evening,
-                    foods: items(.evening, .food, ["Pears and peaches", "Simple fresh dinner"]),
-                    supplements: items(.evening, .supplement, ["DAO enzyme (before dinner)"]),
+                    foods: items(.evening, .food, ["Pears and peaches", "Simple dinner"]),
+                    supplements: items(.evening, .supplement, ["DAO enzyme before dinner"]),
                     rituals: items(.evening, .ritual, ["Wind down early — rest supports DAO"])
                 ),
-                avoid: ["Leftover foods", "Processed meats", "Soy products", "Chocolate (high histamine)"],
+                avoid: ["Leftover foods", "Processed meats", "Soy products", "Chocolate — high histamine"],
                 rationale: "Progesterone naturally supports DAO enzyme production, giving you a wider tolerance window. But as progesterone drops pre-menstrually, sensitivity returns."
             )
         }
@@ -476,6 +478,125 @@ enum NutritionContent {
         case .postnatal: "Histamine sensitivity often shifts postpartum — listen to your body."
         case .perimenopause: "Fluctuating estrogen can worsen histamine intolerance."
         case .menopause: "As estrogen stabilizes, histamine issues often improve."
+        }
+    }
+
+    // MARK: - Hair Health
+
+    private static func hairHealthPlan(phase: CyclePhase, goal: WellnessGoal) -> DailyNutritionPlan {
+        let goalNote = hairHealthGoalNote(goal: goal)
+
+        switch phase {
+        case .menstrual:
+            return DailyNutritionPlan(
+                todayFocus: "Replenish iron and rebuild stores. Hair follicles and ovaries both need rich blood flow now. \(goalNote)",
+                morning: TimeBlock(
+                    timeOfDay: .morning,
+                    foods: items(.morning, .food, ["Soft-cooked eggs", "Oatmeal with stewed berries"]),
+                    supplements: items(.morning, .supplement, ["Iron + Vitamin C", "B-complex"]),
+                    rituals: items(.morning, .ritual, ["3 min scalp massage with warm oil"])
+                ),
+                afternoon: TimeBlock(
+                    timeOfDay: .afternoon,
+                    foods: items(.afternoon, .food, ["Slow-cooked beef or lentil stew", "Cooked leafy greens"]),
+                    supplements: items(.afternoon, .supplement, ["Magnesium glycinate"]),
+                    rituals: items(.afternoon, .ritual, ["Restorative walk after lunch"])
+                ),
+                evening: TimeBlock(
+                    timeOfDay: .evening,
+                    foods: items(.evening, .food, ["Bone broth", "Sweet potato with tahini"]),
+                    supplements: items(.evening, .supplement, ["Omega-3"]),
+                    rituals: items(.evening, .ritual, ["Legs-up-the-wall for 5 min — pelvic circulation"])
+                ),
+                avoid: ["Calorie restriction", "High-intensity training", "Skipped meals"],
+                rationale: "Menstruation depletes iron and ferritin — both critical for follicle and ovarian function. Gentle movement protects cortisol while warming foods restore the body."
+            )
+
+        case .follicular:
+            return DailyNutritionPlan(
+                todayFocus: "Estrogen rises and hair enters its growth phase. Build proteins, fats, and mitochondrial nutrients. \(goalNote)",
+                morning: TimeBlock(
+                    timeOfDay: .morning,
+                    foods: items(.morning, .food, ["Greek yogurt with pumpkin seeds", "Berries and walnuts"]),
+                    supplements: items(.morning, .supplement, ["CoQ10", "Biotin"]),
+                    rituals: items(.morning, .ritual, ["Inversion stretch — head below heart for 1 min"])
+                ),
+                afternoon: TimeBlock(
+                    timeOfDay: .afternoon,
+                    foods: items(.afternoon, .food, ["Wild salmon or sardines", "Avocado with leafy greens"]),
+                    supplements: items(.afternoon, .supplement, ["Zinc", "Vitamin D"]),
+                    rituals: items(.afternoon, .ritual, ["Strength training — your phase supports it"])
+                ),
+                evening: TimeBlock(
+                    timeOfDay: .evening,
+                    foods: items(.evening, .food, ["Quinoa bowl with eggs", "Brazil nuts for selenium"]),
+                    supplements: items(.evening, .supplement, ["Collagen peptides"]),
+                    rituals: items(.evening, .ritual, ["5 min scalp massage with rosemary oil"])
+                ),
+                avoid: ["Crash diets", "Hair-tight styles all day", "Excess caffeine"],
+                rationale: "Rising estrogen prolongs the hair growth phase. Mitochondrial nutrients like CoQ10 and B vitamins feed both hair follicles and ovaries during this build-up window."
+            )
+
+        case .ovulation:
+            return DailyNutritionPlan(
+                todayFocus: "Peak estrogen and circulation. Maximize antioxidants and protein for follicle and egg quality. \(goalNote)",
+                morning: TimeBlock(
+                    timeOfDay: .morning,
+                    foods: items(.morning, .food, ["Eggs with spinach and tomato", "Citrus or kiwi"]),
+                    supplements: items(.morning, .supplement, ["CoQ10", "Vitamin C + E"]),
+                    rituals: items(.morning, .ritual, ["Hip mobility flow for 5 min"])
+                ),
+                afternoon: TimeBlock(
+                    timeOfDay: .afternoon,
+                    foods: items(.afternoon, .food, ["Grass-fed beef or lentils", "Colorful raw veggies"]),
+                    supplements: items(.afternoon, .supplement, ["Selenium"]),
+                    rituals: items(.afternoon, .ritual, ["Peak workout — channel the energy"])
+                ),
+                evening: TimeBlock(
+                    timeOfDay: .evening,
+                    foods: items(.evening, .food, ["Salmon with olive oil", "Roasted vegetables"]),
+                    supplements: items(.evening, .supplement, ["Omega-3"]),
+                    rituals: items(.evening, .ritual, ["Scalp and jaw release massage"])
+                ),
+                avoid: ["Inflammatory seed oils", "Late-night sugar", "Chronic stress spikes"],
+                rationale: "Ovulation showcases the strongest blood flow of the cycle. Antioxidants protect mitochondria in both ovaries and hair follicles when oxygen demand peaks."
+            )
+
+        case .luteal:
+            return DailyNutritionPlan(
+                todayFocus: "Progesterone supports retention. Steady blood sugar protects cortisol — and cortisol protects hair. \(goalNote)",
+                morning: TimeBlock(
+                    timeOfDay: .morning,
+                    foods: items(.morning, .food, ["Eggs with sourdough and avocado", "Pumpkin seeds"]),
+                    supplements: items(.morning, .supplement, ["Magnesium glycinate", "B6"]),
+                    rituals: items(.morning, .ritual, ["Eat within 1 hour of waking"])
+                ),
+                afternoon: TimeBlock(
+                    timeOfDay: .afternoon,
+                    foods: items(.afternoon, .food, ["Chicken thigh or chickpeas", "Roasted root vegetables"]),
+                    supplements: items(.afternoon, .supplement, ["Inositol", "Vitamin D"]),
+                    rituals: items(.afternoon, .ritual, ["Walk after meals — steady insulin"])
+                ),
+                evening: TimeBlock(
+                    timeOfDay: .evening,
+                    foods: items(.evening, .food, ["Sweet potato with salmon", "Dark leafy greens with olive oil"]),
+                    supplements: items(.evening, .supplement, ["Omega-3", "Collagen"]),
+                    rituals: items(.evening, .ritual, ["Slow scalp massage and early wind-down"])
+                ),
+                avoid: ["Skipped meals", "HIIT or heavy training", "Alcohol"],
+                rationale: "Progesterone buffers androgens that shrink follicles. Sugar dips spike cortisol — which raises androgen sensitivity and accelerates shedding — so steady fuel is the protective strategy."
+            )
+        }
+    }
+
+    private static func hairHealthGoalNote(goal: WellnessGoal) -> String {
+        switch goal {
+        case .healthyCycle: "Hair density and cycle regularity rise together — patience pays off."
+        case .tryingToConceive: "The same nutrients that thicken hair also support egg quality and ovarian reserve."
+        case .prenatal: "Estrogen is high — hair feels its best now. Keep iron and protein generous."
+        case .postnatal: "Postpartum shedding is normal — focus on iron, protein, and rest to rebuild."
+        case .perimenopause: "Estrogen dips first show up in hair. Mitochondrial support is especially important now."
+        case .menopause: "Protein, healthy fats, and circulation become the core hair strategy."
         }
     }
 

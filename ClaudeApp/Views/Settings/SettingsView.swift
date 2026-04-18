@@ -128,7 +128,7 @@ struct SettingsView: View {
                     Button {
                         withAnimation(AppTheme.gentleAnimation) {
                             if isSelected {
-                                profile.nutritionProtocol = nil
+                                profile.nutritionProtocol = .daoSt
                             } else {
                                 profile.nutritionProtocol = nutritionProtocol
                             }
@@ -153,7 +153,7 @@ struct SettingsView: View {
                 }
             }
 
-            Text("Tap a selected protocol again to deselect.")
+            Text("Tap a selected protocol to return to DAO Support.")
                 .captionStyle()
         }
         .warmCard()
