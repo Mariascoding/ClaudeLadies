@@ -37,6 +37,20 @@ struct AutoFlowerCreatorView: View {
         }
     }
 
+    // MARK: - Re-entry Stage
+    //
+    // When the user presses the mini flower in `.noted`, we layer a
+    // fullscreen white overlay on top of the noted screen: the big flower
+    // rises from the bottom and re-grows while the finger stays pressed on
+    // the dot. On release we show a short comparison message + subtle
+    // history graph, then fade the overlay away.
+
+    private enum ReentryStage: Equatable {
+        case active     // white overlay visible; user is (or was) pressing
+        case released   // user let go; comparison + graph visible
+        case closing    // overlay fading back out to the noted screen
+    }
+
     // MARK: - Generated Flower
 
     private struct GeneratedFlower: Equatable {
@@ -89,7 +103,7 @@ struct AutoFlowerCreatorView: View {
 
     @State private var periodDate: Date = .now
     @State private var hasPeriod: Bool = true
-    @State private var ageInput: String = ""
+    @State private var ageSelection: Int = 28
     @State private var nameInput: String = ""
 
     /// 0=period, 1=age, 2=name
@@ -116,13 +130,25 @@ struct AutoFlowerCreatorView: View {
     @State private var toastMessage: String? = nil
     @State private var toastTask: Task<Void, Never>? = nil
 
-    // Mini-flower hold tracking (tap vs press-and-hold differentiation)
+    // Mini-flower hold tracking (legacy — no longer used for tap/hold diff)
     @State private var miniHoldStartTime: Date? = nil
     @State private var miniHoldResetTask: Task<Void, Never>? = nil
 
+    // Re-entry overlay state
+    @State private var reentryStage: ReentryStage? = nil
+    @State private var reentryFadeInTask: Task<Void, Never>? = nil
+    @State private var reentryCloseTask: Task<Void, Never>? = nil
+    @State private var reentryCompareMessage: String? = nil
+    @State private var reentryPreviousEntry: FlowerStateEntry? = nil
+
+    // Read-only state progression page (quick tap on mini flower)
+    @State private var showStatePage: Bool = false
+
+    @Query(sort: \FlowerStateEntry.timestamp, order: .reverse)
+    private var stateHistory: [FlowerStateEntry]
+
     @Environment(\.modelContext) private var modelContext
 
-    @FocusState private var ageFieldFocused: Bool
     @FocusState private var nameFieldFocused: Bool
 
     private let stepHaptic = UIImpactFeedbackGenerator(style: .soft)
@@ -131,31 +157,50 @@ struct AutoFlowerCreatorView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            ScrollView {
-                VStack(spacing: AppTheme.Spacing.lg) {
-                    generatedHeader
-
-                    if phase.isNoted {
-                        notedContentStage
-                    } else {
-                        flowerStage
-                        storyText
-                        inputStage
-                        stepIndicator
+            if phase.isNoted {
+                GeometryReader { geo in
+                    ScrollView {
+                        VStack(spacing: AppTheme.Spacing.lg) {
+                            generatedHeader
+                            notedContentStage
+                        }
+                        .padding(.top, AppTheme.Spacing.md)
+                        .padding(.bottom, 160)
+                        .frame(minHeight: geo.size.height + 1)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.82), value: showNervousSystem)
                     }
-
-                    footerButton
                 }
-                .padding(.top, AppTheme.Spacing.md)
-                .padding(.bottom, phase.isNoted ? 160 : AppTheme.Spacing.xxl)
-                .animation(.spring(response: 0.7, dampingFraction: 0.78), value: phase)
-                .animation(.spring(response: 0.6, dampingFraction: 0.82), value: showNervousSystem)
+            } else {
+                GeometryReader { geo in
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            generatedHeader
+                                .padding(.top, AppTheme.Spacing.md)
+
+                            Spacer(minLength: 0)
+
+                            flowerStage
+                            storyText
+
+                            Spacer(minLength: 0)
+
+                            VStack(spacing: AppTheme.Spacing.lg) {
+                                inputStage
+                                stepIndicator
+                                footerButton
+                            }
+                            .padding(.bottom, AppTheme.Spacing.xl)
+                        }
+                        .frame(minHeight: geo.size.height + 1)
+                        .animation(.spring(response: 0.7, dampingFraction: 0.78), value: phase)
+                    }
+                }
             }
 
             if phase.isNoted,
                let config = generated?.config {
                 VStack(spacing: AppTheme.Spacing.sm) {
-                    if let message = toastMessage {
+                    if let message = toastMessage, reentryStage == nil {
                         Text(message)
                             .font(.system(.footnote, design: .rounded, weight: .medium))
                             .foregroundStyle(Color.appSoftBrown.opacity(0.85))
@@ -172,9 +217,11 @@ struct AutoFlowerCreatorView: View {
 
                     MiniFlowerWidget(
                         config: config,
-                        isHolding: $isHolding,
                         holdProgress: $holdProgress,
-                        bloomState: $bloomState
+                        bloomState: $bloomState,
+                        flowerHidden: reentryStage != nil,
+                        isChannelling: reentryStage == .active,
+                        onPressChange: handleMiniFlowerPress
                     )
                 }
                 .padding(.bottom, AppTheme.Spacing.xl)
@@ -185,6 +232,18 @@ struct AutoFlowerCreatorView: View {
                         removal: .opacity
                     )
                 )
+            }
+
+            if phase.isNoted,
+               let stage = reentryStage,
+               let config = generated?.config {
+                reentryOverlay(config: config, stage: stage)
+                    .transition(.opacity)
+            }
+
+            if phase.isNoted, showStatePage {
+                statePageOverlay
+                    .transition(.opacity)
             }
         }
         .background(Color.appCream.ignoresSafeArea())
@@ -202,14 +261,18 @@ struct AutoFlowerCreatorView: View {
             toastTask = nil
             miniHoldResetTask?.cancel()
             miniHoldResetTask = nil
+            reentryFadeInTask?.cancel()
+            reentryFadeInTask = nil
+            reentryCloseTask?.cancel()
+            reentryCloseTask = nil
         }
         .onChange(of: isHolding) { oldValue, newValue in
             if phase.isInteractive, oldValue, !newValue {
                 noteEmotionalState()
                 return
             }
-            if phase.isNoted {
-                handleMiniFlowerHoldChange(oldValue: oldValue, newValue: newValue)
+            if phase.isNoted, reentryStage == .active, oldValue, !newValue {
+                finishReentry()
             }
         }
     }
@@ -376,6 +439,177 @@ struct AutoFlowerCreatorView: View {
         }
     }
 
+    // MARK: - Re-entry Overlay
+    //
+    // Full-screen white layer shown when the user presses the mini flower
+    // in `.noted`. The big flower is re-rendered centred in the overlay
+    // (sharing the same bloom bindings as the mini, so both move in
+    // lockstep), energy sparkles stream from the dot below toward it,
+    // and on release a short comparison message + subtle history graph
+    // take over before the overlay fades back out.
+
+    @ViewBuilder
+    private func reentryOverlay(config: AutoFlowerConfig, stage: ReentryStage) -> some View {
+        ZStack {
+            Color.white
+                .opacity(stage == .closing ? 0 : 1)
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.55), value: stage)
+
+            VStack(spacing: AppTheme.Spacing.xl) {
+                Spacer(minLength: 0)
+
+                FlowerBloomCanvas(
+                    outerDesign: config.outerDesign,
+                    innerDesign: config.innerDesign,
+                    stamenDesign: config.stamenDesign,
+                    centerDesign: config.centerDesign,
+                    outerColor: config.outerColor,
+                    innerColor: config.innerColor,
+                    stamenColor: config.stamenColor,
+                    centerColor: config.centerColor,
+                    geometry: config.geometry,
+                    isHolding: $isHolding,
+                    holdProgress: $holdProgress,
+                    bloomState: $bloomState,
+                    showBackground: false,
+                    interactive: false
+                )
+                .frame(width: 280, height: 280)
+                .scaleEffect(stage == .closing ? 0.25 : 1.0)
+                .opacity(stage == .closing ? 0 : 1)
+                .animation(.easeInOut(duration: 0.7), value: stage)
+
+                if stage == .released, let message = reentryCompareMessage {
+                    VStack(spacing: AppTheme.Spacing.md) {
+                        Text(currentDisplayState.displayName)
+                            .font(.system(.title3, design: .serif).italic())
+                            .fontWeight(.medium)
+                            .foregroundStyle(currentDisplayState.color)
+
+                        Text(message)
+                            .font(.system(.body, design: .serif).italic())
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.75))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, AppTheme.Spacing.xl)
+
+                        StateHistoryGraph(entries: stateHistory)
+                            .frame(height: 56)
+                            .padding(.horizontal, AppTheme.Spacing.xl)
+                            .padding(.top, AppTheme.Spacing.sm)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                } else if stage == .active {
+                    Text("Hold the light to honour how you feel")
+                        .font(.system(.footnote, design: .serif).italic())
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+                        .transition(.opacity)
+                }
+
+                Spacer(minLength: 0)
+
+                // Leave room for the halo that stays pinned at the bottom.
+                Color.clear.frame(height: 180)
+            }
+
+            if stage == .active {
+                EnergyStream(isActive: isHolding)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.45), value: stage == .released)
+    }
+
+    // MARK: - State Page Overlay
+    //
+    // Read-only progression view shown on a quick tap of the mini
+    // flower. Lists recent entries with timestamps alongside the subtle
+    // history graph. Tapping anywhere dismisses.
+
+    private var statePageOverlay: some View {
+        let recent = Array(stateHistory.prefix(10))
+        let current = notedBloomState ?? bloomState
+
+        return ZStack {
+            Color.appCream
+                .opacity(0.98)
+                .ignoresSafeArea()
+
+            VStack(spacing: AppTheme.Spacing.lg) {
+                VStack(spacing: AppTheme.Spacing.xs) {
+                    Text("Your state")
+                        .warmTitle()
+                    Text("how you've been moving")
+                        .captionStyle()
+                }
+                .padding(.top, AppTheme.Spacing.xxl)
+
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    HStack(spacing: AppTheme.Spacing.sm) {
+                        Image(systemName: current.icon)
+                            .foregroundStyle(current.color)
+                        Text(current.displayName)
+                            .font(.system(.title3, design: .serif).italic())
+                            .fontWeight(.medium)
+                            .foregroundStyle(current.color)
+                    }
+                    Text(current.emotionalLabel)
+                        .font(.system(.footnote, design: .serif).italic())
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                }
+
+                StateHistoryGraph(entries: stateHistory)
+                    .frame(height: 90)
+                    .padding(.horizontal, AppTheme.Spacing.xl)
+
+                if recent.isEmpty {
+                    Text("No entries yet — press and hold the flower to note your first.")
+                        .font(.system(.footnote, design: .serif).italic())
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, AppTheme.Spacing.xl)
+                } else {
+                    ScrollView {
+                        VStack(spacing: AppTheme.Spacing.sm) {
+                            ForEach(recent) { entry in
+                                HStack(spacing: AppTheme.Spacing.md) {
+                                    Circle()
+                                        .fill(entry.bloomState.color.opacity(0.7))
+                                        .frame(width: 8, height: 8)
+                                    Text(entry.bloomState.displayName)
+                                        .font(.system(.subheadline, design: .serif))
+                                        .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                                    Spacer()
+                                    Text(Self.relativeTimeString(from: entry.timestamp, to: .now))
+                                        .font(.system(.caption, design: .rounded))
+                                        .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+                                }
+                                .padding(.horizontal, AppTheme.Spacing.lg)
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 220)
+                }
+
+                Spacer()
+
+                Text("Tap to close   ·   press & hold the flower to note a new state")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, AppTheme.Spacing.xl)
+            }
+            .padding(.horizontal, AppTheme.Spacing.md)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                showStatePage = false
+            }
+        }
+    }
+
     // MARK: - Input Stage (floating, card-less)
 
     @ViewBuilder
@@ -391,7 +625,7 @@ struct AutoFlowerCreatorView: View {
                 }
             }
             .id("input-\(inputStep)")
-            .frame(maxWidth: .infinity, minHeight: 160)
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, AppTheme.Spacing.lg)
             .transition(
                 .asymmetric(
@@ -543,52 +777,42 @@ struct AutoFlowerCreatorView: View {
                 .multilineTextAlignment(.center)
 
             VStack(spacing: AppTheme.Spacing.sm) {
-                TextField(
-                    "",
-                    text: $ageInput,
-                    prompt: Text("years")
-                        .font(.system(.title2, design: .serif).italic())
-                        .foregroundStyle(Color.appSoftBrown.opacity(0.35))
-                )
-                .font(.system(.title2, design: .serif).italic())
-                .multilineTextAlignment(.center)
-                .foregroundStyle(Color.appSoftBrown)
-                .keyboardType(.numberPad)
-                .focused($ageFieldFocused)
-                .frame(maxWidth: 180)
-                .padding(.bottom, 6)
+                Picker("Age", selection: $ageSelection) {
+                    ForEach(Self.ageRange, id: \.self) { age in
+                        Text("\(age) years")
+                            .font(.system(.title3, design: .serif).italic())
+                            .foregroundStyle(Color.appSoftBrown)
+                            .tag(age)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(maxWidth: 220, maxHeight: 140)
+                .clipped()
                 .overlay(alignment: .bottom) {
                     Capsule()
                         .fill(Color.appRose.opacity(0.4))
                         .frame(height: 1)
                 }
 
-                if let hint = phaseOfLifeHint {
-                    Text(hint)
-                        .font(.system(.footnote, design: .serif))
-                        .italic()
-                        .foregroundStyle(Color.appRose.opacity(0.85))
-                        .transition(.opacity)
-                }
-            }
-        }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                ageFieldFocused = true
+                Text(phaseOfLifeHint ?? " ")
+                    .font(.system(.footnote, design: .serif))
+                    .italic()
+                    .foregroundStyle(Color.appRose.opacity(0.85))
+                    .opacity(phaseOfLifeHint == nil ? 0 : 1)
+                    .frame(height: 20)
+                    .animation(.easeInOut(duration: 0.25), value: phaseOfLifeHint)
             }
         }
     }
+
+    private static let ageRange: ClosedRange<Int> = 10...80
 
     /// Soft acknowledgement when the user is outside her bleeding years.
     private var phaseOfLifeHint: String? {
-        guard let n = parsedAge else { return nil }
+        let n = ageSelection
         if n < 13 { return "Maiden \u{2014} your bleed has yet to come" }
         if n >= 50 { return "Wise woman \u{2014} beyond the bleed" }
         return nil
-    }
-
-    private var parsedAge: Int? {
-        Int(ageInput.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     // MARK: - Name (floating)
@@ -621,11 +845,45 @@ struct AutoFlowerCreatorView: View {
                     .fill(Color.appRose.opacity(0.4))
                     .frame(height: 1)
             }
+            .submitLabel(.done)
+            .onSubmit(handleKeyboardSubmit)
+            .toolbar { keyboardSubmitToolbar }
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 nameFieldFocused = true
             }
+        }
+    }
+
+    // MARK: - Keyboard Toolbar (Continue / Express)
+
+    @ToolbarContentBuilder
+    private var keyboardSubmitToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .keyboard) {
+            Spacer()
+            Button(action: handleKeyboardSubmit) {
+                HStack(spacing: AppTheme.Spacing.xs) {
+                    Text(inputStep < Self.totalInputSteps - 1 ? "Continue" : "Express")
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    Image(systemName: inputStep < Self.totalInputSteps - 1
+                          ? "arrow.right"
+                          : "wand.and.stars")
+                }
+                .foregroundStyle(currentStepValid ? Color.appRose : Color.appSoftBrown.opacity(0.4))
+            }
+            .disabled(!currentStepValid)
+        }
+    }
+
+    /// Called from the keyboard's Continue / Express button and from the
+    /// name field's return key — advances steps or kicks off generation.
+    private func handleKeyboardSubmit() {
+        guard currentStepValid else { return }
+        if inputStep < Self.totalInputSteps - 1 {
+            advanceStep()
+        } else {
+            startGeneration()
         }
     }
 
@@ -777,8 +1035,7 @@ struct AutoFlowerCreatorView: View {
         case 0:
             return true  // period choice + optional date are always valid
         case 1:
-            guard let n = parsedAge else { return false }
-            return n > 0 && n < 120
+            return Self.ageRange.contains(ageSelection)
         case 2:
             return !nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         default:
@@ -788,7 +1045,6 @@ struct AutoFlowerCreatorView: View {
 
     private func advanceStep() {
         guard currentStepValid, inputStep < Self.totalInputSteps - 1 else { return }
-        ageFieldFocused = false
         nameFieldFocused = false
         withAnimation(.easeInOut(duration: 0.55)) {
             inputStep += 1
@@ -815,13 +1071,12 @@ struct AutoFlowerCreatorView: View {
         guard !trimmed.isEmpty else { return }
 
         nameFieldFocused = false
-        ageFieldFocused = false
 
         let date = hasPeriod ? periodDate : Date()
         let archetype = MoonWomanArchetypeEngine.archetype(for: date)
         // Seed combines all user inputs so two women with different ages or
         // names get different flowers even if they share an archetype.
-        let seed = "\(trimmed)|\(ageInput)|\(Int(date.timeIntervalSinceReferenceDate))"
+        let seed = "\(trimmed)|\(ageSelection)|\(Int(date.timeIntervalSinceReferenceDate))"
         let config = MoonWomanArchetypeEngine.flowerConfig(for: archetype, seed: seed)
         let flowerName = FlowerNamingEngine.flowerName(for: trimmed)
         let g = GeneratedFlower(
@@ -938,6 +1193,7 @@ struct AutoFlowerCreatorView: View {
         guard phase.isCaptured else { return }
         let captured = bloomState
         prepareDailyContext(for: captured)
+        saveStateEntry(captured)
 
         withAnimation(.spring(response: 0.9, dampingFraction: 0.78)) {
             notedBloomState = captured
@@ -973,62 +1229,137 @@ struct AutoFlowerCreatorView: View {
         }
     }
 
-    // MARK: - Mini Flower Hold Handling
+    // MARK: - Mini Flower Press Handling
     //
-    // The mini flower is re-interactive in the `.noted` phase: a quick tap
-    // toggles the nervous system support section, while a press-and-hold
-    // resets the bloom to bud and lets the user grow it again to a new
-    // state. We differentiate the two by timing the hold — anything under
-    // ~250 ms is treated as a tap, otherwise the flower resets after a
-    // short delay (so a tap never accidentally collapses the bloom).
+    // The mini flower distinguishes a quick tap from a sustained hold:
+    // • Quick tap → opens the read-only state progression page.
+    // • Sustained hold (≥ holdThreshold) → kicks off the full re-entry
+    //   flow (white screen, flower regrows, new state noted on release).
+    //
+    // During the ambiguity window we deliberately do NOT drive
+    // `isHolding`, so the canvas timer doesn't silently advance progress
+    // — that advance is what used to make a tap look like a tiny bloom.
 
-    private func handleMiniFlowerHoldChange(oldValue: Bool, newValue: Bool) {
-        if !oldValue && newValue {
-            // Press began
-            miniHoldStartTime = Date()
-            // Dismiss any lingering hint toast
+    private static let reentryHoldThreshold: TimeInterval = 0.35
+
+    private func handleMiniFlowerPress(_ pressed: Bool) {
+        if pressed {
+            // Ignore presses while an overlay is already on screen — we
+            // want the user to interact with that, not re-trigger.
+            guard reentryStage == nil, !showStatePage else { return }
+
             if toastMessage != nil {
                 toastTask?.cancel()
                 withAnimation(.easeOut(duration: 0.2)) { toastMessage = nil }
             }
+
+            miniHoldStartTime = Date()
             miniHoldResetTask?.cancel()
             miniHoldResetTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 250_000_000)
+                try? await Task.sleep(
+                    nanoseconds: UInt64(Self.reentryHoldThreshold * 1_000_000_000)
+                )
                 if Task.isCancelled { return }
-                // Real hold — reset to bud so the flower visibly grows
-                // again from scratch while the finger is still down.
-                withAnimation(.easeOut(duration: 0.3)) {
-                    holdProgress = Self.restingBudProgress
-                    bloomState = .bud
-                }
+                // Threshold reached while finger is still down — promote
+                // this press to a re-entry hold and let the canvas start
+                // feeding the flower.
+                startReentry()
+                isHolding = true
             }
-        } else if oldValue && !newValue {
-            // Press released
+        } else {
+            let threshold = Self.reentryHoldThreshold
             let elapsed = miniHoldStartTime.map { Date().timeIntervalSince($0) } ?? 0
             miniHoldStartTime = nil
             miniHoldResetTask?.cancel()
             miniHoldResetTask = nil
 
-            if elapsed < 0.25 {
-                // Quick tap — toggle the nervous system support section
-                withAnimation(.spring(response: 0.55, dampingFraction: 0.82)) {
-                    showNervousSystem.toggle()
+            if elapsed < threshold {
+                // Short tap — open the state page instead of editing.
+                withAnimation(.easeInOut(duration: 0.45)) {
+                    showStatePage = true
                 }
             } else {
-                // Real hold — snap (FlowerBloomCanvas already did), update
-                // the noted state, and confirm with a brief toast.
-                updateNotedState()
+                // Sustained hold was promoted already; finish through
+                // the canvas's isHolding → false snap path.
+                if isHolding { isHolding = false }
+                // `finishReentry` also runs via onChange(of: isHolding)
+                // when reentryStage == .active, so nothing more needed
+                // here.
             }
         }
     }
 
-    /// Updates the noted bloom state + daily guidance to whatever the
-    /// user just held the flower to, and surfaces a confirmation toast.
-    private func updateNotedState() {
+    /// Begins the re-entry overlay: dismiss lingering toasts, reset the
+    /// flower to bud so the user visibly regrows it, flip the stage so
+    /// the white overlay fades in over the noted screen.
+    private func startReentry() {
+        if toastMessage != nil {
+            toastTask?.cancel()
+            withAnimation(.easeOut(duration: 0.2)) { toastMessage = nil }
+        }
+        reentryFadeInTask?.cancel()
+        reentryCloseTask?.cancel()
+
+        // Snapshot the previous entry so we can compare on release even
+        // after the new one is saved.
+        reentryPreviousEntry = stateHistory.first
+        reentryCompareMessage = nil
+
+        withAnimation(.easeOut(duration: 0.35)) {
+            holdProgress = Self.restingBudProgress
+            bloomState = .bud
+        }
+        withAnimation(.easeInOut(duration: 0.55)) {
+            reentryStage = .active
+        }
+    }
+
+    /// User released during the active stage. Snap to the nearest bloom
+    /// state (the canvas already did), persist a new FlowerStateEntry,
+    /// build a comparison line, and move to .released so the comparison
+    /// + subtle graph appear over the white overlay.
+    private func finishReentry() {
         let snapped = BloomState.closest(to: holdProgress)
+        let previous = reentryPreviousEntry
+        saveStateEntry(snapped)
+        reentryCompareMessage = Self.comparisonMessage(
+            previous: previous,
+            new: snapped,
+            now: .now
+        )
         notedBloomState = snapped
         prepareDailyContext(for: snapped)
-        showToast("New state noted", duration: 1.8)
+
+        withAnimation(.easeInOut(duration: 0.55)) {
+            reentryStage = .released
+        }
+        scheduleReentryClose()
+    }
+
+    /// After the comparison has been on screen long enough to read, fade
+    /// the overlay back out and return to the plain noted view.
+    private func scheduleReentryClose() {
+        reentryCloseTask?.cancel()
+        reentryCloseTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_500_000_000)
+            if Task.isCancelled { return }
+            withAnimation(.easeInOut(duration: 0.7)) {
+                reentryStage = .closing
+            }
+            try? await Task.sleep(nanoseconds: 750_000_000)
+            if Task.isCancelled { return }
+            reentryStage = nil
+            reentryCompareMessage = nil
+            reentryPreviousEntry = nil
+        }
+    }
+
+    /// Persists a FlowerStateEntry for the given bloom state. Used both
+    /// for the first-time note and subsequent re-entries.
+    private func saveStateEntry(_ bloom: BloomState) {
+        let entry = FlowerStateEntry(timestamp: .now, bloomState: bloom)
+        modelContext.insert(entry)
+        try? modelContext.save()
     }
 
     /// Computes cycle position + daily guidance from the entered period
@@ -1074,6 +1405,46 @@ struct AutoFlowerCreatorView: View {
         }
     }
 
+    /// Builds a short encouraging line that names the shift from the
+    /// previous entry to the new one — indirect, never judgemental.
+    /// Falls back to a welcoming line when there is no prior entry.
+    private static func comparisonMessage(
+        previous: FlowerStateEntry?,
+        new: BloomState,
+        now: Date
+    ) -> String {
+        guard let previous else {
+            return "Your first bloom noted — welcome"
+        }
+
+        let prior = previous.bloomState
+        let delta = new.bloomAmount - prior.bloomAmount
+        let elapsed = relativeTimeString(from: previous.timestamp, to: now)
+
+        if delta > 0 {
+            return "Your inner state is harmonising — \(elapsed)"
+        } else if delta < 0 {
+            return "Softer than \(elapsed) — be tender with yourself"
+        } else {
+            return "Holding steady since \(elapsed)"
+        }
+    }
+
+    /// Short human-readable elapsed string — "4 hours ago", "yesterday",
+    /// etc. Kept deliberately compact so it fits one line on the overlay.
+    private static func relativeTimeString(from past: Date, to now: Date) -> String {
+        let seconds = now.timeIntervalSince(past)
+        if seconds < 90 { return "a moment ago" }
+        let minutes = Int(seconds / 60)
+        if minutes < 60 { return "\(minutes) minutes ago" }
+        let hours = Int(seconds / 3600)
+        if hours < 24 { return hours == 1 ? "1 hour ago" : "\(hours) hours ago" }
+        let days = Int(seconds / 86_400)
+        if days == 1 { return "yesterday" }
+        if days < 7 { return "\(days) days ago" }
+        return "a while ago"
+    }
+
     private func reset() {
         storyTask?.cancel()
         storyTask = nil
@@ -1086,13 +1457,21 @@ struct AutoFlowerCreatorView: View {
         miniHoldResetTask?.cancel()
         miniHoldResetTask = nil
         miniHoldStartTime = nil
+        reentryFadeInTask?.cancel()
+        reentryFadeInTask = nil
+        reentryCloseTask?.cancel()
+        reentryCloseTask = nil
+        reentryStage = nil
+        reentryCompareMessage = nil
+        reentryPreviousEntry = nil
+        showStatePage = false
         withAnimation(.spring(response: 0.7, dampingFraction: 0.78)) {
             phase = .input
             generated = nil
             holdProgress = Self.restingBudProgress
             bloomState = .bud
             inputStep = 0
-            ageInput = ""
+            ageSelection = 28
             notedBloomState = nil
             cyclePosition = nil
             dailyGuidance = nil
@@ -1147,44 +1526,266 @@ private struct CompleteArchetypeCard: View {
 
 // MARK: - Mini Flower Widget
 //
-// Once the user has noted their emotional state, the full-size flower
-// shrinks and drops to the bottom of the screen as a small pulsing
-// widget. Tapping it opens the inline nervous system support section.
-// The widget shares the same `isHolding/holdProgress/bloomState`
-// bindings as the main view so the flower continues to render the
-// exact bloom stage the user landed on.
+// Soft shiny halo + small flower pinned at the bottom of the noted
+// screen. The halo reports raw press/release to the parent via
+// `onPressChange` — the parent decides whether that press is a quick
+// tap (open the state page) or a sustained hold (kick off re-entry),
+// and only then drives the shared `isHolding` binding. This keeps the
+// canvas from silently advancing progress during the tap-vs-hold
+// ambiguity window.
 private struct MiniFlowerWidget: View {
     let config: AutoFlowerConfig
-    @Binding var isHolding: Bool
     @Binding var holdProgress: CGFloat
     @Binding var bloomState: BloomState
 
+    /// When true we dim the small flower so the big flower in the
+    /// re-entry overlay feels like the same flower that "flew up".
+    var flowerHidden: Bool = false
+
+    /// True once the parent has decided this press is a sustained hold
+    /// (i.e. re-entry is active). Used purely for visual feedback on
+    /// the halo — brighter flare when the flower is actually feeding.
+    var isChannelling: Bool = false
+
+    var onPressChange: (Bool) -> Void
+
+    @State private var isPressed: Bool = false
     @State private var pulse: CGFloat = 1.0
 
     var body: some View {
-        FlowerBloomCanvas(
-            outerDesign: config.outerDesign,
-            innerDesign: config.innerDesign,
-            stamenDesign: config.stamenDesign,
-            centerDesign: config.centerDesign,
-            outerColor: config.outerColor,
-            innerColor: config.innerColor,
-            stamenColor: config.stamenColor,
-            centerColor: config.centerColor,
-            geometry: config.geometry,
-            isHolding: $isHolding,
-            holdProgress: $holdProgress,
-            bloomState: $bloomState,
-            showBackground: false,
-            interactive: true
+        ZStack {
+            ShinyHalo(isHolding: isPressed || isChannelling)
+                .frame(width: 140, height: 140)
+
+            FlowerBloomCanvas(
+                outerDesign: config.outerDesign,
+                innerDesign: config.innerDesign,
+                stamenDesign: config.stamenDesign,
+                centerDesign: config.centerDesign,
+                outerColor: config.outerColor,
+                innerColor: config.innerColor,
+                stamenColor: config.stamenColor,
+                centerColor: config.centerColor,
+                geometry: config.geometry,
+                isHolding: .constant(false),  // mini never drives progress
+                holdProgress: $holdProgress,
+                bloomState: $bloomState,
+                showBackground: false,
+                interactive: false
+            )
+            .frame(width: 76, height: 76)
+            .scaleEffect(isPressed ? 1.0 : pulse)
+            .opacity(flowerHidden ? 0 : 1)
+            .animation(.easeInOut(duration: 0.25), value: isPressed)
+            .animation(.easeInOut(duration: 0.6), value: flowerHidden)
+        }
+        .contentShape(Circle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed {
+                        isPressed = true
+                        onPressChange(true)
+                    }
+                }
+                .onEnded { _ in
+                    isPressed = false
+                    onPressChange(false)
+                }
         )
-        .frame(width: 76, height: 76)
-        .scaleEffect(isHolding ? 1.0 : pulse)
-        .animation(.easeInOut(duration: 0.25), value: isHolding)
         .onAppear {
             pulse = 1.0
             withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
                 pulse = 1.1
+            }
+        }
+    }
+}
+
+// MARK: - Shiny Halo
+//
+// Soft luminous disc that sits behind the mini flower (and stays pinned
+// at the bottom of the screen during re-entry). Pulses gently when idle
+// and flares brighter while the user is pressing — visually suggesting
+// the halo is the energy source feeding the flower's bloom.
+private struct ShinyHalo: View {
+    var isHolding: Bool
+
+    @State private var breathPhase: CGFloat = 0
+    @State private var shimmerPhase: CGFloat = 0
+
+    private let timer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        let intensity: CGFloat = isHolding ? 1.15 : 0.85
+        let breath: CGFloat = 1.0 + sin(breathPhase) * 0.06
+        let shimmer: CGFloat = 0.55 + 0.25 * sin(shimmerPhase)
+        let warmGold = Color(red: 1.0, green: 0.88, blue: 0.58)
+        let paleRose = Color(red: 1.0, green: 0.82, blue: 0.78)
+
+        ZStack {
+            // Outer soft glow
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            warmGold.opacity(0.45 * Double(intensity)),
+                            warmGold.opacity(0.10 * Double(intensity)),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: 4,
+                        endRadius: 70
+                    )
+                )
+                .scaleEffect(breath)
+
+            // Mid shimmer ring
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            paleRose.opacity(0.55 * Double(intensity) * Double(shimmer)),
+                            paleRose.opacity(0.15 * Double(intensity) * Double(shimmer)),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: 2,
+                        endRadius: 44
+                    )
+                )
+                .blendMode(.plusLighter)
+                .scaleEffect(breath * 0.95)
+
+            // Core hotspot
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(0.85 * Double(intensity)),
+                            warmGold.opacity(0.55 * Double(intensity)),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 14
+                    )
+                )
+                .frame(width: 36, height: 36)
+                .blur(radius: isHolding ? 1.5 : 2.0)
+        }
+        .allowsHitTesting(false)
+        .animation(.easeInOut(duration: 0.35), value: isHolding)
+        .onReceive(timer) { _ in
+            breathPhase += 1.0 / 60.0 * 1.6
+            shimmerPhase += 1.0 / 60.0 * 2.4
+        }
+    }
+}
+
+// MARK: - Energy Stream
+//
+// Glitter/energy particles that rise from the halo at the bottom of the
+// screen toward the centred flower during the re-entry active stage.
+// Visually sells the idea that the dot is "feeding" the flower's bloom.
+private struct EnergyStream: View {
+    var isActive: Bool
+
+    private static let particleCount = 18
+
+    var body: some View {
+        GeometryReader { geo in
+            TimelineView(.animation(paused: !isActive)) { timeline in
+                Canvas { context, size in
+                    let now = CGFloat(timeline.date.timeIntervalSinceReferenceDate)
+                    let bottomY = size.height - 110   // near the halo
+                    let topY    = size.height * 0.38  // near the flower
+                    let centerX = size.width / 2
+                    let travel  = bottomY - topY
+
+                    for i in 0..<Self.particleCount {
+                        let seed = CGFloat(i) * 5.17
+                        let cycle: CGFloat = 1.8 + abs(sin(seed)) * 1.2
+                        let offset = abs(cos(seed * 1.3)) * cycle
+                        var u = (now + offset).truncatingRemainder(dividingBy: cycle) / cycle
+                        if u < 0 { u += 1 }
+
+                        let y = bottomY - travel * u
+                        let drift = sin(now * 1.8 + seed) * 18.0
+                        let x = centerX + drift
+
+                        let bell = sin(u * .pi)
+                        let alpha = bell * (isActive ? 0.9 : 0.0)
+                        let sizePt: CGFloat = 3.5 + CGFloat(i % 3) * 1.2
+
+                        let gold = Color(red: 1.0, green: 0.88, blue: 0.58)
+                        let rose = Color(red: 1.0, green: 0.82, blue: 0.82)
+                        let color = i % 3 == 0 ? Color.white : (i % 3 == 1 ? gold : rose)
+
+                        let rect = CGRect(x: x - sizePt / 2,
+                                          y: y - sizePt / 2,
+                                          width: sizePt,
+                                          height: sizePt)
+                        context.fill(Path(ellipseIn: rect),
+                                     with: .color(color.opacity(alpha)))
+
+                        // Soft halo under each particle
+                        let halo = CGRect(x: x - sizePt * 1.6,
+                                          y: y - sizePt * 1.6,
+                                          width: sizePt * 3.2,
+                                          height: sizePt * 3.2)
+                        context.fill(Path(ellipseIn: halo),
+                                     with: .color(color.opacity(alpha * 0.18)))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - State History Graph
+//
+// Subtle horizontal dot plot of recent FlowerStateEntry records. Time
+// runs left → right, y-position encodes bloomAmount. Kept low-contrast
+// and unlabeled so it feels informative but not imposing.
+private struct StateHistoryGraph: View {
+    let entries: [FlowerStateEntry]
+
+    var body: some View {
+        GeometryReader { geo in
+            let recent = Array(entries.prefix(12).reversed())
+            let w = geo.size.width
+            let h = geo.size.height
+
+            ZStack {
+                // Baseline
+                Path { p in
+                    p.move(to: CGPoint(x: 0, y: h - 2))
+                    p.addLine(to: CGPoint(x: w, y: h - 2))
+                }
+                .stroke(Color.appSoftBrown.opacity(0.18), lineWidth: 0.5)
+
+                if recent.count >= 2 {
+                    // Connecting line
+                    Path { p in
+                        for (i, entry) in recent.enumerated() {
+                            let x = w * CGFloat(i) / CGFloat(max(recent.count - 1, 1))
+                            let y = h - (h - 6) * entry.bloomState.bloomAmount - 2
+                            if i == 0 { p.move(to: CGPoint(x: x, y: y)) }
+                            else      { p.addLine(to: CGPoint(x: x, y: y)) }
+                        }
+                    }
+                    .stroke(Color.appRose.opacity(0.35), lineWidth: 1)
+                }
+
+                ForEach(Array(recent.enumerated()), id: \.offset) { i, entry in
+                    let x = w * CGFloat(i) / CGFloat(max(recent.count - 1, 1))
+                    let y = h - (h - 6) * entry.bloomState.bloomAmount - 2
+                    Circle()
+                        .fill(entry.bloomState.color.opacity(0.55))
+                        .frame(width: 5, height: 5)
+                        .position(x: x, y: y)
+                }
             }
         }
     }
