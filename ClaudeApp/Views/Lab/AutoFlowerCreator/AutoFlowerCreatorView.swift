@@ -302,6 +302,11 @@ struct AutoFlowerCreatorView: View {
     private var flowerStage: some View {
         let config = generated?.config ?? Self.restingConfig
         let showSparkles = phase.isBloomedScene && holdProgress >= 0.88
+        // During input the flower is only a resting bud, so we draw it
+        // noticeably smaller — leaves room for the name field + keyboard
+        // and trims vertical overflow on the age page.
+        let canvasSize: CGFloat = phase.isInput ? 200 : 300
+        let outerSize: CGFloat  = phase.isInput ? 240 : 360
 
         return ZStack {
             FlowerBloomCanvas(
@@ -320,17 +325,17 @@ struct AutoFlowerCreatorView: View {
                 showBackground: false,
                 interactive: phase.isInteractive
             )
-            .frame(width: 300, height: 300)
+            .frame(width: canvasSize, height: canvasSize)
             .scaleEffect(phase.isInput ? budPulse : 1.0)
 
             if showSparkles {
                 SparkleEmitter()
-                    .frame(width: 360, height: 360)
+                    .frame(width: outerSize, height: outerSize)
                     .allowsHitTesting(false)
                     .transition(.opacity.animation(.easeInOut(duration: 1.2)))
             }
         }
-        .frame(width: 360, height: 360)
+        .frame(width: outerSize, height: outerSize)
         .padding(.vertical, AppTheme.Spacing.sm)
         .animation(.easeInOut(duration: 0.6), value: showSparkles)
         .contentShape(Rectangle())
@@ -777,22 +782,30 @@ struct AutoFlowerCreatorView: View {
                 .multilineTextAlignment(.center)
 
             VStack(spacing: AppTheme.Spacing.sm) {
-                Picker("Age", selection: $ageSelection) {
-                    ForEach(Self.ageRange, id: \.self) { age in
-                        Text("\(age) years")
-                            .font(.system(.title3, design: .serif).italic())
+                Menu {
+                    Picker("Age", selection: $ageSelection) {
+                        ForEach(Self.ageRange, id: \.self) { age in
+                            Text("\(age) years").tag(age)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: AppTheme.Spacing.xs) {
+                        Text("\(ageSelection) years")
+                            .font(.system(.title2, design: .serif).italic())
                             .foregroundStyle(Color.appSoftBrown)
-                            .tag(age)
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+                    }
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                    .padding(.bottom, 6)
+                    .overlay(alignment: .bottom) {
+                        Capsule()
+                            .fill(Color.appRose.opacity(0.4))
+                            .frame(height: 1)
                     }
                 }
-                .pickerStyle(.wheel)
-                .frame(maxWidth: 220, maxHeight: 140)
-                .clipped()
-                .overlay(alignment: .bottom) {
-                    Capsule()
-                        .fill(Color.appRose.opacity(0.4))
-                        .frame(height: 1)
-                }
+                .tint(Color.appRose)
 
                 Text(phaseOfLifeHint ?? " ")
                     .font(.system(.footnote, design: .serif))
