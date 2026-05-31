@@ -151,10 +151,10 @@ struct LunarMirrorCard: View {
             ZStack {
                 MoonView(moonState: moonState)
 
-                // Wisdom overlay
+                // Wisdom overlay — fades away on scroll
                 wisdomOverlay
-                    .opacity(showingWisdom ? 1 : 0)
-                    .allowsHitTesting(showingWisdom)
+                    .opacity(showingWisdom ? wisdomScrollOpacity : 0)
+                    .allowsHitTesting(showingWisdom && wisdomScrollOpacity > 0.5)
             }
             .frame(height: 240)
 
@@ -183,6 +183,22 @@ struct LunarMirrorCard: View {
                 }
             }
         }
+        .onChange(of: scrollOffset) { _, newOffset in
+            // Dismiss wisdom overlay when user scrolls down
+            if showingWisdom && newOffset > 30 {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    showingWisdom = false
+                }
+            }
+        }
+    }
+
+    /// Fades the wisdom overlay as user starts scrolling
+    private var wisdomScrollOpacity: Double {
+        let fadeStart: CGFloat = 10
+        let fadeEnd: CGFloat = 60
+        let clamped = min(max(scrollOffset, fadeStart), fadeEnd)
+        return Double(1.0 - (clamped - fadeStart) / (fadeEnd - fadeStart))
     }
 
     // MARK: - Alignment Overlay
@@ -211,29 +227,33 @@ struct LunarMirrorCard: View {
                 .opacity(showWisdomTitle ? 1 : 0)
                 .offset(y: showWisdomTitle ? 0 : 40)
 
-                // Cycle + archetype alignment
-                VStack(spacing: AppTheme.Spacing.xs) {
-                    Text("\(cycleStateVerb) with the \(currentLunarPhase.displayName)")
-                        .font(.system(.caption, design: AppTheme.fontFamilySerif))
-                        .foregroundStyle(textPrimary.opacity(textSecondary))
+                // Cycle-moon alignment — hero percentage
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    Text("CYCLE · MOON ALIGNMENT")
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundStyle(textPrimary.opacity(0.4))
+                        .tracking(1.2)
 
-                    HStack(spacing: AppTheme.Spacing.xs) {
-                        Text("\(alignmentPercent)%")
-                            .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .bold))
-                            .foregroundStyle(textPrimary.opacity(0.85))
-                        Text("\(currentProfile.name) Woman")
-                            .font(.system(.subheadline, design: AppTheme.fontFamilySerif, weight: .medium))
-                            .foregroundStyle(textPrimary.opacity(0.9))
-                    }
+                    Text("\(alignmentPercent)%")
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .foregroundStyle(currentProfile.color)
+
+                    Text("\(currentProfile.name) Woman")
+                        .font(.system(.subheadline, design: .serif, weight: .medium))
+                        .foregroundStyle(textPrimary.opacity(0.85))
+
+                    Text("\(cycleStateVerb) with the \(currentLunarPhase.displayName)")
+                        .font(.system(.caption, design: .serif))
+                        .foregroundStyle(textPrimary.opacity(textSecondary))
 
                     HStack(spacing: AppTheme.Spacing.xs) {
                         ForEach(Array(currentProfile.traits.prefix(3).enumerated()), id: \.offset) { _, trait in
                             Text(trait)
-                                .font(.system(size: 10, weight: .medium, design: AppTheme.fontFamily))
-                                .foregroundStyle(textPrimary.opacity(0.8))
+                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                .foregroundStyle(textPrimary.opacity(0.75))
                                 .padding(.horizontal, AppTheme.Spacing.xs)
                                 .padding(.vertical, AppTheme.Spacing.xxs)
-                                .background(textPrimary.opacity(isNightMode ? 0.15 : 0.1))
+                                .background(textPrimary.opacity(isNightMode ? 0.12 : 0.08))
                                 .clipShape(Capsule())
                         }
                     }

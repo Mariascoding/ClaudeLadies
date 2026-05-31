@@ -31,4 +31,34 @@ extension View {
             .lineSpacing(AppTheme.lineSpacing)
             .foregroundStyle(Color.appSoftBrown.opacity(0.8))
     }
+
+    /// Uppercase tracked label — editorial section marker
+    func sectionLabel() -> some View {
+        self.font(.system(.caption, design: .rounded, weight: .semibold))
+            .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+            .textCase(.uppercase)
+            .kerning(1.0)
+    }
+
+    /// Uppercase tracked label with custom color
+    func sectionLabel(color: Color) -> some View {
+        self.font(.system(.caption, design: .rounded, weight: .semibold))
+            .foregroundStyle(color)
+            .textCase(.uppercase)
+            .kerning(1.0)
+    }
+
+    /// Serif body with line spacing — for wisdom/guidance content
+    func serifBody() -> some View {
+        self.font(.system(.body, design: .serif))
+            .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+            .lineSpacing(4)
+    }
+
+    /// Serif caption italic — for subtle timing/context info
+    func serifCaption() -> some View {
+        self.font(.system(.caption, design: .serif))
+            .italic()
+            .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+    }
 }

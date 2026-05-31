@@ -142,7 +142,7 @@ enum ColorTheme: String, CaseIterable, Identifiable {
         case .winter:
             Color(red: 224/255, green: 184/255, blue: 192/255)
         case .spring:
-            Color(red: 216/255, green: 184/255, blue: 208/255)
+            Color(red: 234/255, green: 214/255, blue: 228/255)
         case .summer:
             Color(red: 224/255, green: 200/255, blue: 144/255)
         case .autumn:

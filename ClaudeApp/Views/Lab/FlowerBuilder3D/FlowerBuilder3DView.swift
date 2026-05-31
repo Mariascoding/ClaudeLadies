@@ -9,6 +9,7 @@ private final class Bloom3DHapticsEngine {
     private let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
 
     private var firedStates: Set<Int> = []
+    private var heartbeatAccumulator: CGFloat = 0
 
     private static let thresholds: [(state: Int, progress: CGFloat, style: Int, intensity: CGFloat)] = [
         (1, 0.15, 0, 0.5),   // light
@@ -42,8 +43,24 @@ private final class Bloom3DHapticsEngine {
         }
     }
 
+    /// Fires rhythmic light impacts that speed up + intensify with progress.
+    /// Creates a heartbeat-like sensation that makes the bloom feel alive.
+    func tickHeartbeat(progress: CGFloat, dt: CGFloat) {
+        heartbeatAccumulator += dt
+        let p = max(0, min(progress, 1))
+        // Interval shrinks 0.85s → 0.25s as progress grows
+        let interval: CGFloat = 0.85 - p * 0.6
+        guard heartbeatAccumulator >= interval else { return }
+        heartbeatAccumulator = 0
+        // Intensity ramps 0.25 → 0.9
+        let intensity: CGFloat = 0.25 + p * 0.65
+        lightGenerator.impactOccurred(intensity: intensity)
+        lightGenerator.prepare()
+    }
+
     func reset() {
         firedStates.removeAll()
+        heartbeatAccumulator = 0
     }
 }
 
@@ -105,12 +122,14 @@ struct FlowerBuilder3DView: View {
     @State private var selectedPart: FlowerPart = .outerPetals
 
     @State private var isDrawerOpen = true
+    @State private var useToonShader: Bool = false
 
     // Bloom mode state
     @State private var isBloomMode = false
     @State private var isHolding = false
     @State private var holdProgress: CGFloat = 0
     @State private var bloomState: BloomState = .bud
+    @State private var bloomTime: CGFloat = 0
     @State private var holdHintVisible = true
 
     private let haptics = Bloom3DHapticsEngine()
@@ -136,7 +155,9 @@ struct FlowerBuilder3DView: View {
                     centerColor: centerColor,
                     geometry: geometry,
                     isBloomMode: isBloomMode,
-                    bloomProgress: holdProgress
+                    bloomProgress: holdProgress,
+                    bloomTime: bloomTime,
+                    useToonShader: useToonShader
                 )
                 .frame(height: isBloomMode ? 420 : 350)
                 .frame(maxWidth: .infinity)
@@ -151,6 +172,10 @@ struct FlowerBuilder3DView: View {
                 )
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.lg))
                 .shadow(color: .black.opacity(isBloomMode ? 0 : 0.06), radius: 8, y: 2)
+                .overlay(alignment: .topTrailing) {
+                    styleToggle
+                        .padding(AppTheme.Spacing.sm)
+                }
                 .overlay(alignment: .bottom) {
                     if isBloomMode {
                         // Transparent touch layer for bloom hold gesture
@@ -213,10 +238,13 @@ struct FlowerBuilder3DView: View {
             }
         }
         .onReceive(bloomTimer) { _ in
-            guard isBloomMode, isHolding else { return }
+            guard isBloomMode else { return }
             let dt: CGFloat = 1.0 / 60.0
+            bloomTime += dt
+            guard isHolding else { return }
             holdProgress = min(holdProgress + dt / bloomDuration, 1.0)
             haptics.update(progress: holdProgress)
+            haptics.tickHeartbeat(progress: holdProgress, dt: dt)
         }
         .onChange(of: isHolding) { _, holding in
             guard isBloomMode, !holding else { return }
@@ -226,6 +254,44 @@ struct FlowerBuilder3DView: View {
                 holdProgress = snapped.bloomAmount
             }
         }
+    }
+
+    // MARK: - Style Toggle
+
+    private var styleToggle: some View {
+        HStack(spacing: 4) {
+            styleChip(label: "Clay", isActive: !useToonShader) {
+                if useToonShader {
+                    withAnimation(.easeInOut(duration: 0.25)) { useToonShader = false }
+                }
+            }
+            styleChip(label: "Toon", isActive: useToonShader) {
+                if !useToonShader {
+                    withAnimation(.easeInOut(duration: 0.25)) { useToonShader = true }
+                }
+            }
+        }
+        .padding(4)
+        .background(.ultraThinMaterial, in: Capsule())
+        .environment(\.colorScheme, isBloomMode ? .dark : .light)
+    }
+
+    private func styleChip(label: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(.caption, design: AppTheme.fontFamily, weight: .semibold))
+                .foregroundStyle(isActive
+                                 ? Color.white
+                                 : (isBloomMode ? Color.white.opacity(0.65) : Color.appSoftBrown.opacity(0.65)))
+                .padding(.horizontal, AppTheme.Spacing.sm)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule().fill(isActive
+                                   ? Color.appRose.opacity(0.85)
+                                   : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Build Controls
@@ -495,6 +561,7 @@ struct FlowerBuilder3DView: View {
 
     private func enterBloomMode() {
         holdProgress = 0
+        bloomTime = 0
         bloomState = .bud
         isHolding = false
         holdHintVisible = true
@@ -508,6 +575,7 @@ struct FlowerBuilder3DView: View {
             isBloomMode = false
             isHolding = false
             holdProgress = 0
+            bloomTime = 0
             bloomState = .bud
         }
     }

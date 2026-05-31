@@ -93,7 +93,7 @@ struct OnboardingView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(Color.appRose)
 
-            Text("Your Wellness Goal")
+            Text("Your Life Stage")
                 .warmTitle()
 
             Text("What brings you here? This helps us tailor your guidance.")

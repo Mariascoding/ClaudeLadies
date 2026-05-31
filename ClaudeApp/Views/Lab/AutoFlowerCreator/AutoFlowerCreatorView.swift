@@ -5,6 +5,18 @@ import SwiftData
 
 struct AutoFlowerCreatorView: View {
 
+    /// Optional callback fired the first time the view reaches the
+    /// `.noted` phase — i.e. the user has completed the full Auto
+    /// Flower experience (intake → bloom → press-and-hold → shrink to
+    /// mini flower). The Carousel lab uses this to hand control back
+    /// to itself after the elaborate setup sequence.
+    var onNoted: (() -> Void)? = nil
+
+    /// Background colour for the whole view. Defaults to `.appCream`
+    /// so the Auto Flower lab stays exactly as it was; the Carousel
+    /// lab passes a custom warmer tone for visual harmony.
+    var backgroundColor: Color = .appCream
+
     // MARK: - Phase
 
     private enum Phase: Equatable {
@@ -134,6 +146,18 @@ struct AutoFlowerCreatorView: View {
     @State private var miniHoldStartTime: Date? = nil
     @State private var miniHoldResetTask: Task<Void, Never>? = nil
 
+    /// Cumulative committed rotation of the LARGE state-page flower
+    /// (advances by a step on each horizontal swipe inside the state
+    /// page overlay).
+    @State private var flowerRotation: Double = 0
+    /// 0 = compact state ribbon, 1 = breathwork practice — driven by
+    /// horizontal swipes on the large flower in the state page.
+    @State private var notedCardIndex: Int = 0
+    /// Live drag rotation while the user is swiping the large flower
+    /// inside the state page (resets to 0 on release).
+    @State private var stateFlowerDragRotation: Double = 0
+    @State private var stateFlowerDidSwipe: Bool = false
+
     // Re-entry overlay state
     @State private var reentryStage: ReentryStage? = nil
     @State private var reentryFadeInTask: Task<Void, Never>? = nil
@@ -143,9 +167,107 @@ struct AutoFlowerCreatorView: View {
 
     // Read-only state progression page (quick tap on mini flower)
     @State private var showStatePage: Bool = false
+    @State private var statePageZoom: CGFloat = 0.85
+
+    // Nutrition overlay (Sun → protocol cards + symptoms)
+    @State private var showNutritionPage: Bool = false
+    @State private var showFullProtocol: Bool = false
+    @State private var showSymptomPage: Bool = false
+    @State private var symptomQuery: String = ""
+    @State private var revealedSymptom: Symptom? = nil
+
+    // Moon overlay (Moon widget → today's moon view + wisdom)
+    @State private var showMoonPage: Bool = false
+    @StateObject private var moonState = MoonState()
+
+    // Intro marketing page shown before the period question.
+    @State private var showingIntro: Bool = true
 
     @Query(sort: \FlowerStateEntry.timestamp, order: .reverse)
     private var stateHistory: [FlowerStateEntry]
+
+    @Query(sort: \ShinedustEvent.timestamp, order: .reverse)
+    private var shinedustEvents: [ShinedustEvent]
+
+    @Query(sort: \AutoFlowerProfile.createdDate, order: .reverse)
+    private var savedProfiles: [AutoFlowerProfile]
+
+    private var savedProfile: AutoFlowerProfile? { savedProfiles.first }
+
+    @Query(sort: \NutritionLog.date, order: .reverse)
+    private var allNutritionLogs: [NutritionLog]
+
+    @Query(sort: \SymptomEntry.date, order: .reverse)
+    private var symptomEntries: [SymptomEntry]
+
+    @Query(sort: \CycleLog.startDate, order: .reverse)
+    private var cycleLogs: [CycleLog]
+
+    private var todayNutritionLog: NutritionLog? {
+        let today = Calendar.current.startOfDay(for: .now)
+        return allNutritionLogs.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
+    }
+
+    private var totalShinedust: Int {
+        shinedustEvents.reduce(0) { $0 + $1.amount }
+    }
+
+    private var growthLevel: CGFloat {
+        GrowthLevel.level(for: totalShinedust)
+    }
+
+    private var growthTier: GrowthLevel.Tier {
+        GrowthLevel.Tier.tier(for: totalShinedust)
+    }
+
+    // MARK: - Nutrition / Symptom Helpers
+
+    /// Active daily nutrition plan, derived from the current cycle phase
+    /// and the user's selected protocol (defaulting to DAO support if no
+    /// profile / protocol exists yet). Returns nil only before the user
+    /// has noted a state, since cyclePosition isn't available yet.
+    private var activeNutritionPlan: DailyNutritionPlan? {
+        guard let position = cyclePosition else { return nil }
+        let profile = try? modelContext.fetch(FetchDescriptor<UserProfile>()).first
+        let proto = profile?.nutritionProtocol ?? .daoSt
+        let goal = profile?.wellnessGoal ?? .healthyCycle
+        return NutritionContent.dailyPlan(
+            for: proto,
+            phase: position.phase,
+            goal: goal
+        )
+    }
+
+    /// Time block matching the current hour — drives which card we open
+    /// the nutrition page on.
+    private var currentTimeBlock: TimeOfDay {
+        let hour = Calendar.current.component(.hour, from: .now)
+        switch hour {
+        case 6..<12:  return .morning
+        case 12..<18: return .afternoon
+        default:      return .evening
+        }
+    }
+
+    private func isNutritionItemCompleted(_ item: NutritionItem) -> Bool {
+        todayNutritionLog?.hasCompleted(item.id) ?? false
+    }
+
+    private func toggleNutritionItem(_ item: NutritionItem) {
+        let log: NutritionLog
+        if let existing = todayNutritionLog {
+            log = existing
+        } else {
+            log = NutritionLog(date: .now)
+            modelContext.insert(log)
+        }
+        let wasCompleted = log.hasCompleted(item.id)
+        log.toggleItem(item.id)
+        try? modelContext.save()
+        if !wasCompleted {
+            Shinedust.award(.nutritionItem, in: modelContext)
+        }
+    }
 
     @Environment(\.modelContext) private var modelContext
 
@@ -185,14 +307,19 @@ struct AutoFlowerCreatorView: View {
                             Spacer(minLength: 0)
 
                             VStack(spacing: AppTheme.Spacing.lg) {
-                                inputStage
-                                stepIndicator
+                                if phase.isInput, showingIntro {
+                                    introStage
+                                } else {
+                                    inputStage
+                                    stepIndicator
+                                }
                                 footerButton
                             }
                             .padding(.bottom, AppTheme.Spacing.xl)
                         }
                         .frame(minHeight: geo.size.height + 1)
                         .animation(.spring(response: 0.7, dampingFraction: 0.78), value: phase)
+                        .animation(.easeInOut(duration: 0.45), value: showingIntro)
                     }
                 }
             }
@@ -215,14 +342,34 @@ struct AutoFlowerCreatorView: View {
                             .id(message)
                     }
 
-                    MiniFlowerWidget(
-                        config: config,
-                        holdProgress: $holdProgress,
-                        bloomState: $bloomState,
-                        flowerHidden: reentryStage != nil,
-                        isChannelling: reentryStage == .active,
-                        onPressChange: handleMiniFlowerPress
-                    )
+                    HStack(spacing: AppTheme.Spacing.sm) {
+                        SunWidget(
+                            isHidden: reentryStage != nil
+                        ) {
+                            withAnimation(.easeInOut(duration: 0.45)) {
+                                showNutritionPage = true
+                            }
+                        }
+
+                        MiniFlowerWidget(
+                            config: config,
+                            holdProgress: $holdProgress,
+                            bloomState: $bloomState,
+                            flowerHidden: reentryStage != nil,
+                            isChannelling: reentryStage == .active,
+                            growthLevel: growthLevel,
+                            growthTier: growthTier,
+                            onPressChange: handleMiniFlowerPress
+                        )
+
+                        MoonWidget(
+                            isHidden: reentryStage != nil
+                        ) {
+                            withAnimation(.easeInOut(duration: 0.45)) {
+                                showMoonPage = true
+                            }
+                        }
+                    }
                 }
                 .padding(.bottom, AppTheme.Spacing.xl)
                 .animation(.easeInOut(duration: 0.35), value: toastMessage)
@@ -245,11 +392,52 @@ struct AutoFlowerCreatorView: View {
                 statePageOverlay
                     .transition(.opacity)
             }
+
+            if phase.isNoted, showNutritionPage {
+                nutritionOverlay
+                    .transition(.opacity)
+            }
+
+            if phase.isNoted, showSymptomPage {
+                symptomOverlay
+                    .transition(.opacity)
+            }
+
+            if phase.isNoted, showMoonPage {
+                moonOverlay
+                    .transition(.opacity)
+            }
         }
-        .background(Color.appCream.ignoresSafeArea())
+        .background(backgroundColor.ignoresSafeArea())
+        .overlay(alignment: .topTrailing) {
+            if !phase.isNoted {
+                Button(action: skipToNoted) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "forward.end.fill")
+                            .font(.system(size: 8))
+                        Text("skip")
+                            .font(.system(size: 9, weight: .medium))
+                            .tracking(0.5)
+                    }
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.4))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(Color.appSoftBrown.opacity(0.2), lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
+                .padding(.top, AppTheme.Spacing.xs)
+                .padding(.trailing, AppTheme.Spacing.md)
+            }
+        }
         .navigationTitle("Auto Flower")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { startBudPulse() }
+        .onAppear {
+            startBudPulse()
+            Task { await moonState.load() }
+        }
         .onDisappear {
             storyTask?.cancel()
             storyTask = nil
@@ -284,10 +472,14 @@ struct AutoFlowerCreatorView: View {
         if let g = generated, !phase.isInput {
             VStack(spacing: AppTheme.Spacing.xs) {
                 Text(g.displayName)
-                    .warmTitle()
+                    .font(.custom("SnellRoundhand-Bold", size: 40))
+                    .foregroundStyle(g.config.outerColor)
+                    .shadow(color: g.config.outerColor.opacity(0.18), radius: 6, y: 2)
                 if phase.isBloomedScene {
-                    Text(g.flowerName)
-                        .affirmationStyle()
+                    Text(g.flowerName.uppercased())
+                        .font(.system(.caption, design: .serif, weight: .light))
+                        .tracking(3)
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.55))
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
@@ -297,36 +489,141 @@ struct AutoFlowerCreatorView: View {
         }
     }
 
+    // MARK: - Intro Stage
+    //
+    // Dedicated intro screen that sits in the same bottom slot as the
+    // input questions — so the bud flower above stays pinned in place
+    // as the user moves from intro → period → age → name. A "Begin"
+    // button below advances the flow.
+
+    @ViewBuilder
+    private var introStage: some View {
+        VStack(spacing: AppTheme.Spacing.lg) {
+            VStack(spacing: AppTheme.Spacing.md) {
+                Text("Hormones govern emotional and physical wellbeing and beauty.")
+                    .font(.system(.title3, design: .serif).italic())
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.90))
+                Text("Feed your hormones at every stage of your life.")
+                    .font(.system(.title3, design: .serif).italic())
+                    .foregroundStyle(Color.appRose)
+            }
+            .multilineTextAlignment(.center)
+
+            if let profile = savedProfile {
+                Button {
+                    loadFlower(from: profile)
+                } label: {
+                    VStack(spacing: 2) {
+                        Text("CONTINUE AS")
+                            .font(.system(size: 9, weight: .medium))
+                            .tracking(2)
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                        Text(profile.displayName)
+                            .font(.custom("SnellRoundhand-Bold", size: 26))
+                            .foregroundStyle(Color.appRose)
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.top, AppTheme.Spacing.sm)
+            }
+        }
+        .padding(.horizontal, AppTheme.Spacing.xl)
+        .transition(
+            .asymmetric(
+                insertion: .opacity.combined(with: .move(edge: .bottom)),
+                removal: .opacity.combined(with: .move(edge: .top))
+            )
+        )
+    }
+
     // MARK: - Flower Stage
 
     private var flowerStage: some View {
         let config = generated?.config ?? Self.restingConfig
         let showSparkles = phase.isBloomedScene && holdProgress >= 0.88
-        // During input the flower is only a resting bud, so we draw it
-        // noticeably smaller — leaves room for the name field + keyboard
-        // and trims vertical overflow on the age page.
-        let canvasSize: CGFloat = phase.isInput ? 200 : 300
-        let outerSize: CGFloat  = phase.isInput ? 240 : 360
+        // Single canvas size used for both input bud and building flower
+        // so the bud is rendered at the exact same dimensions in both
+        // phases. The flower grows inside that canvas via scaleEffect,
+        // and the outer layout container grows in lockstep.
+        let canvasSize: CGFloat = 300
+        // 0 while the bud is at resting size, 1 at full bloom.
+        let growthRange = max(1 - Self.restingBudProgress, 0.0001)
+        let growthProgress: CGFloat = min(
+            max((holdProgress - Self.restingBudProgress) / growthRange, 0),
+            1
+        )
+        // Visual size of the flower: 150pt (small bud) → 300pt (full bloom).
+        let flowerScale: CGFloat = 0.5 + 0.5 * growthProgress
+        // Layout container grows in step with the flower so the bud has
+        // the same tight surroundings everywhere (240pt) and the full
+        // bloom gets enough room to breathe (360pt).
+        let outerSize: CGFloat = 240 + 120 * growthProgress
 
         return ZStack {
-            FlowerBloomCanvas(
-                outerDesign: config.outerDesign,
-                innerDesign: config.innerDesign,
-                stamenDesign: config.stamenDesign,
-                centerDesign: config.centerDesign,
-                outerColor: config.outerColor,
-                innerColor: config.innerColor,
-                stamenColor: config.stamenColor,
-                centerColor: config.centerColor,
-                geometry: config.geometry,
-                isHolding: $isHolding,
-                holdProgress: $holdProgress,
-                bloomState: $bloomState,
-                showBackground: false,
-                interactive: phase.isInteractive
-            )
-            .frame(width: canvasSize, height: canvasSize)
-            .scaleEffect(phase.isInput ? budPulse : 1.0)
+            if phase.isInput {
+                // Organic lotus bud during intake — matches the Cycle
+                // Bloom winter stage so the resting bud looks like a
+                // real closed lotus rather than a smooth circle.
+                CycleBloomFlower(composition: intakeBudComposition)
+                    .frame(width: canvasSize, height: canvasSize)
+                    .scaleEffect(flowerScale * budPulse)
+                    .allowsHitTesting(false)
+            } else if phase.isBuilding || phase.isComplete {
+                // Two-layer bud→bloom crossfade so the flower visibly
+                // opens *from its centre*: the closed bud shrinks and
+                // fades while the blooming flower grows out from the
+                // same centre and fades in. Lotus pads naturally
+                // shrink with the bud, and the flower's leaves grow
+                // in with the bloom, giving the illusion of the green
+                // bud turning into the leaves of the flower.
+                let bloomOpacity: Double = Double(
+                    min(max((growthProgress - 0.05) * 1.8, 0), 1)
+                )
+                let bloomLayerScale: CGFloat = 0.20 + 0.80 * growthProgress
+                let budOpacity: Double = Double(
+                    min(max(1 - growthProgress * 1.9, 0), 1)
+                )
+                let budLayerScale: CGFloat = max(0.35, 1 - growthProgress * 0.7)
+                let intensity = 0.65 + 0.35 * growthProgress
+
+                ZStack {
+                    // Bud layer — visible at start, shrinks toward the
+                    // centre and fades out as the flower opens.
+                    CycleBloomFlower(composition: buildingBudComposition)
+                        .frame(width: canvasSize, height: canvasSize)
+                        .scaleEffect(budLayerScale)
+                        .opacity(budOpacity)
+
+                    // Bloom layer — appears from the centre and grows
+                    // outward, season morphing from spring blossom to
+                    // a full flourishing flower.
+                    CycleBloomFlower(composition: buildingComposition)
+                        .frame(width: canvasSize, height: canvasSize)
+                        .scaleEffect(bloomLayerScale)
+                        .opacity(bloomOpacity)
+                }
+                .saturation(intensity)
+                .scaleEffect(flowerScale)
+                .allowsHitTesting(false)
+            } else {
+                FlowerBloomCanvas(
+                    outerDesign: config.outerDesign,
+                    innerDesign: config.innerDesign,
+                    stamenDesign: config.stamenDesign,
+                    centerDesign: config.centerDesign,
+                    outerColor: config.outerColor,
+                    innerColor: config.innerColor,
+                    stamenColor: config.stamenColor,
+                    centerColor: config.centerColor,
+                    geometry: config.geometry,
+                    isHolding: $isHolding,
+                    holdProgress: $holdProgress,
+                    bloomState: $bloomState,
+                    showBackground: false,
+                    interactive: phase.isInteractive
+                )
+                .frame(width: canvasSize, height: canvasSize)
+            }
 
             if showSparkles {
                 SparkleEmitter()
@@ -344,6 +641,58 @@ struct AutoFlowerCreatorView: View {
                 beginShrinkToNoted()
             }
         }
+    }
+
+    /// Composition used for the intake bud — forces the menstrual /
+    /// winter season so CycleBloomFlower renders its layered lotus
+    /// bud (closed petals + green leaves) regardless of what the user
+    /// has typed in so far.
+    private var intakeBudComposition: CycleBloomView.Composition {
+        let name = nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "Bud"
+            : nameInput.capitalized
+        let base = CycleBloomView.Composition.build(
+            displayName: name,
+            ageSelection: ageSelection,
+            periodDate: .now
+        )
+        return base.season == .winter ? base : base.withSeason(.winter)
+    }
+
+    /// Composition for the *blooming* layer during auto-generation —
+    /// season morphs spring → summer as the bud opens (we let winter
+    /// be the bud-layer's job below, so the bloom layer starts at
+    /// spring and grows into a full flourishing summer flower). The
+    /// cycle-phase colour palette stays locked across all seasons so
+    /// the single picked colour only intensifies, never switches.
+    private var buildingComposition: CycleBloomView.Composition {
+        let base = baseBuildingComposition
+        let season: InnerSeason = holdProgress < 0.65 ? .spring : .summer
+        return base.season == season ? base : base.withSeasonKeepingTint(season)
+    }
+
+    /// Composition for the *bud* layer during auto-generation —
+    /// always winter (closed lotus bud + lotus pads), with the same
+    /// locked-in cycle-phase tint as the bloom layer so the colour
+    /// stays consistent as the bud fades out into the flower.
+    private var buildingBudComposition: CycleBloomView.Composition {
+        let base = baseBuildingComposition
+        return base.season == .winter ? base : base.withSeasonKeepingTint(.winter)
+    }
+
+    /// Shared base composition for the building layers — same seeded
+    /// petal type, same cycle-phase colour palette, same flower
+    /// identity. Each layer overlays its own season on top.
+    private var baseBuildingComposition: CycleBloomView.Composition {
+        let name = (generated?.displayName).flatMap {
+            $0.isEmpty ? nil : $0
+        } ?? (nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+              ? "Bud" : nameInput.capitalized)
+        return CycleBloomView.Composition.build(
+            displayName: name,
+            ageSelection: ageSelection,
+            periodDate: periodDate
+        )
     }
 
     /// Story snippets shown *underneath* the flower while it builds — soft
@@ -381,66 +730,92 @@ struct AutoFlowerCreatorView: View {
     private var notedContentStage: some View {
         VStack(spacing: AppTheme.Spacing.lg) {
             notedPhaseHeader
-
             notedGuidanceSection
-
-            if showNervousSystem, let ns = dailyGuidance?.nervousSystemGuidance {
-                NotedNervousSystemSection(guidance: ns)
-                    .transition(
-                        .asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .top)),
-                            removal: .opacity
-                        )
-                    )
-            }
         }
         .transition(.opacity)
     }
 
+    /// Editorial-styled phase header used only on the noted screen — kept
+    /// inline (rather than reusing the rounded `PhaseHeaderView` that the
+    /// Today tab uses) so this surface can read more like a luxury
+    /// skincare brand: thin serif display, uppercase metadata with
+    /// tracking, restrained colour use.
     @ViewBuilder
     private var notedPhaseHeader: some View {
         if let position = cyclePosition, let g = dailyGuidance {
-            PhaseHeaderView(
-                greeting: g.greeting,
-                phase: position.phase,
-                dayInCycle: position.dayInCycle,
-                cycleLength: Self.defaultCycleLength
-            )
+            VStack(spacing: AppTheme.Spacing.sm) {
+                Text(g.greeting.uppercased())
+                    .font(.system(.caption, design: .serif, weight: .light))
+                    .tracking(3)
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    PhaseIcon(phase: position.phase, size: 26)
+                    Text(position.phase.innerSeason)
+                        .font(.system(size: 34, weight: .light, design: .serif))
+                        .tracking(0.5)
+                        .foregroundStyle(Color.appSoftBrown)
+                }
+
+                Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day())
+                    .font(.system(.caption, design: .serif, weight: .light))
+                    .tracking(1.5)
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+
+                HStack(spacing: 6) {
+                    Capsule()
+                        .fill(position.phase.accentColor.opacity(0.4))
+                        .frame(width: 18, height: 1)
+                    Text("\(position.phase.displayName.uppercased()) PHASE   ·   DAY \(position.dayInCycle) / \(Self.defaultCycleLength)")
+                        .font(.system(size: 10, weight: .medium, design: .default))
+                        .tracking(2)
+                        .foregroundStyle(position.phase.accentColor.opacity(0.85))
+                    Capsule()
+                        .fill(position.phase.accentColor.opacity(0.4))
+                        .frame(width: 18, height: 1)
+                }
+                .padding(.top, AppTheme.Spacing.xs)
+            }
+            .padding(.top, AppTheme.Spacing.lg)
+            .padding(.bottom, AppTheme.Spacing.sm)
         }
     }
 
-    /// Borderless clone of `DailyGuidanceCard` — same layout & typography
-    /// but without the `.warmCard()` chrome, so the screen feels like one
-    /// continuous page.
+    /// Editorial styling of the daily guidance section: clean and box-
+    /// less — heading and body painted in the flower's outer colour so
+    /// it visually rhymes with the user's name at the top of the page.
     @ViewBuilder
     private var notedGuidanceSection: some View {
         if let g = dailyGuidance {
+            let accent = generated?.config.outerColor ?? Color.appRose
+
             VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-                HStack(spacing: AppTheme.Spacing.sm) {
-                    Image(systemName: "shield.lefthalf.filled")
-                        .foregroundStyle(g.phase.accentColor)
-                    Text("Today's Guidance")
-                        .warmHeadline()
-                }
+                Text("TODAY'S GUIDANCE")
+                    .font(.system(size: 11, weight: .medium, design: .default))
+                    .tracking(3.5)
+                    .foregroundStyle(accent)
 
                 Text(g.protectMessage)
-                    .guidanceText()
+                    .font(.system(.title3, design: .serif, weight: .regular))
+                    .italic()
+                    .lineSpacing(5)
+                    .foregroundStyle(accent.opacity(0.92))
                     .fixedSize(horizontal: false, vertical: true)
-
-                Divider()
-                    .overlay(g.phase.accentColor.opacity(0.2))
 
                 HStack(spacing: AppTheme.Spacing.sm) {
                     Image(systemName: "clock")
-                        .foregroundStyle(g.phase.accentColor.opacity(0.7))
-                        .font(.caption)
-                    Text(g.decisionTiming)
-                        .font(.system(.caption, design: AppTheme.fontFamily))
-                        .foregroundStyle(Color.appSoftBrown.opacity(0.7))
+                        .foregroundStyle(accent.opacity(0.55))
+                        .font(.system(size: 10))
+                    Text(g.decisionTiming.uppercased())
+                        .font(.system(size: 10, weight: .light, design: .default))
+                        .tracking(2)
+                        .foregroundStyle(accent.opacity(0.7))
                 }
+                .padding(.top, AppTheme.Spacing.xs)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, AppTheme.Spacing.lg)
+            .id(g.phase)  // re-render colour cleanly when phase swaps
         }
     }
 
@@ -464,23 +839,34 @@ struct AutoFlowerCreatorView: View {
             VStack(spacing: AppTheme.Spacing.xl) {
                 Spacer(minLength: 0)
 
-                FlowerBloomCanvas(
-                    outerDesign: config.outerDesign,
-                    innerDesign: config.innerDesign,
-                    stamenDesign: config.stamenDesign,
-                    centerDesign: config.centerDesign,
-                    outerColor: config.outerColor,
-                    innerColor: config.innerColor,
-                    stamenColor: config.stamenColor,
-                    centerColor: config.centerColor,
-                    geometry: config.geometry,
-                    isHolding: $isHolding,
-                    holdProgress: $holdProgress,
-                    bloomState: $bloomState,
-                    showBackground: false,
-                    interactive: false
-                )
-                .frame(width: 280, height: 280)
+                ZStack {
+                    GrowthOverlay(
+                        level: growthLevel,
+                        tier: growthTier,
+                        size: 280,
+                        accentColor: config.outerColor
+                    )
+                    .frame(width: 360, height: 360)
+
+                    FlowerBloomCanvas(
+                        outerDesign: config.outerDesign,
+                        innerDesign: config.innerDesign,
+                        stamenDesign: config.stamenDesign,
+                        centerDesign: config.centerDesign,
+                        outerColor: config.outerColor,
+                        innerColor: config.innerColor,
+                        stamenColor: config.stamenColor,
+                        centerColor: config.centerColor,
+                        geometry: config.geometry,
+                        isHolding: $isHolding,
+                        holdProgress: $holdProgress,
+                        bloomState: $bloomState,
+                        showBackground: false,
+                        interactive: false
+                    )
+                    .frame(width: 280, height: 280)
+                    .saturation(1.0 + Double(growthLevel) * 0.35)
+                }
                 .scaleEffect(stage == .closing ? 0.25 : 1.0)
                 .opacity(stage == .closing ? 0 : 1)
                 .animation(.easeInOut(duration: 0.7), value: stage)
@@ -533,84 +919,954 @@ struct AutoFlowerCreatorView: View {
     // history graph. Tapping anywhere dismisses.
 
     private var statePageOverlay: some View {
-        let recent = Array(stateHistory.prefix(10))
+        let config = generated?.config ?? Self.restingConfig
+        let g = generated
         let current = notedBloomState ?? bloomState
+        let recent = Array(stateHistory.prefix(12).reversed())
 
         return ZStack {
             Color.appCream
                 .opacity(0.98)
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { dismissStatePage() }
 
-            VStack(spacing: AppTheme.Spacing.lg) {
-                VStack(spacing: AppTheme.Spacing.xs) {
-                    Text("Your state")
-                        .warmTitle()
-                    Text("how you've been moving")
-                        .captionStyle()
-                }
-                .padding(.top, AppTheme.Spacing.xxl)
+            VStack(spacing: AppTheme.Spacing.md) {
+                Spacer(minLength: 0)
 
-                VStack(spacing: AppTheme.Spacing.sm) {
-                    HStack(spacing: AppTheme.Spacing.sm) {
-                        Image(systemName: current.icon)
-                            .foregroundStyle(current.color)
-                        Text(current.displayName)
-                            .font(.system(.title3, design: .serif).italic())
-                            .fontWeight(.medium)
-                            .foregroundStyle(current.color)
-                    }
-                    Text(current.emotionalLabel)
-                        .font(.system(.footnote, design: .serif).italic())
-                        .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                if let g {
+                    Text(g.displayName)
+                        .font(.custom("SnellRoundhand-Bold", size: 28))
+                        .foregroundStyle(g.config.outerColor)
+                        .shadow(color: g.config.outerColor.opacity(0.18), radius: 5, y: 2)
                 }
 
-                StateHistoryGraph(entries: stateHistory)
-                    .frame(height: 90)
-                    .padding(.horizontal, AppTheme.Spacing.xl)
+                ZStack {
+                    StateRingDots(entries: recent, radius: 178)
+                        .frame(width: 360, height: 360)
+                        .opacity(0.95)
 
-                if recent.isEmpty {
-                    Text("No entries yet — press and hold the flower to note your first.")
-                        .font(.system(.footnote, design: .serif).italic())
-                        .foregroundStyle(Color.appSoftBrown.opacity(0.55))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, AppTheme.Spacing.xl)
-                } else {
-                    ScrollView {
-                        VStack(spacing: AppTheme.Spacing.sm) {
-                            ForEach(recent) { entry in
-                                HStack(spacing: AppTheme.Spacing.md) {
-                                    Circle()
-                                        .fill(entry.bloomState.color.opacity(0.7))
-                                        .frame(width: 8, height: 8)
-                                    Text(entry.bloomState.displayName)
-                                        .font(.system(.subheadline, design: .serif))
-                                        .foregroundStyle(Color.appSoftBrown.opacity(0.85))
-                                    Spacer()
-                                    Text(Self.relativeTimeString(from: entry.timestamp, to: .now))
-                                        .font(.system(.caption, design: .rounded))
-                                        .foregroundStyle(Color.appSoftBrown.opacity(0.5))
-                                }
-                                .padding(.horizontal, AppTheme.Spacing.lg)
-                            }
+                    FlowerBloomCanvas(
+                        outerDesign: config.outerDesign,
+                        innerDesign: config.innerDesign,
+                        stamenDesign: config.stamenDesign,
+                        centerDesign: config.centerDesign,
+                        outerColor: config.outerColor,
+                        innerColor: config.innerColor,
+                        stamenColor: config.stamenColor,
+                        centerColor: config.centerColor,
+                        geometry: config.geometry,
+                        isHolding: .constant(false),
+                        holdProgress: .constant(1.0),
+                        bloomState: .constant(.flourishing),
+                        showBackground: false,
+                        interactive: false
+                    )
+                    .frame(width: 300, height: 300)
+                    .saturation(1.0 + Double(growthLevel) * 0.35)
+                    .rotationEffect(.degrees(flowerRotation + stateFlowerDragRotation))
+                    .scaleEffect(statePageZoom)
+                    .onAppear { startStatePageZoom() }
+                    .onDisappear { resetStatePageZoom() }
+
+                    GrowthOverlay(
+                        level: growthLevel,
+                        tier: growthTier,
+                        size: 300,
+                        accentColor: config.outerColor
+                    )
+                    .frame(width: 360, height: 360)
+                    .scaleEffect(statePageZoom)
+                }
+                .contentShape(Circle())
+                .gesture(stateFlowerSwipeGesture)
+
+                ZStack {
+                    Group {
+                        switch notedCardIndex {
+                        case 0:
+                            compactStateRibbon(current: current)
+                        case 1:
+                            patternCard
+                        case 2:
+                            phaseDataCard
+                        case 3:
+                            cycleCalendarCard
+                        default:
+                            EmptyView()
                         }
                     }
-                    .frame(maxHeight: 220)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
+                    .id(notedCardIndex)
+                }
+                .frame(maxWidth: .infinity)
+
+                HStack(spacing: AppTheme.Spacing.xs) {
+                    ForEach(0..<Self.stateCardCount, id: \.self) { i in
+                        Capsule()
+                            .fill(notedCardIndex == i
+                                  ? (generated?.config.outerColor ?? Color.appRose)
+                                  : Color.appSoftBrown.opacity(0.2))
+                            .frame(width: notedCardIndex == i ? 18 : 6, height: 4)
+                    }
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
 
-                Text("Tap to close   ·   press & hold the flower to note a new state")
-                    .font(.system(.caption2, design: .rounded))
+                Text("TAP TO CLOSE   ·   PRESS & HOLD THE FLOWER TO NOTE A NEW STATE")
+                    .font(.system(size: 9, weight: .light, design: .default))
+                    .tracking(1.5)
                     .foregroundStyle(Color.appSoftBrown.opacity(0.45))
                     .multilineTextAlignment(.center)
                     .padding(.bottom, AppTheme.Spacing.xl)
+                    .padding(.horizontal, AppTheme.Spacing.lg)
+            }
+        }
+    }
+
+    /// Compact data ribbon stitched under the flower: current state +
+    /// shinedust drops + growth tier, all in tracked editorial captions
+    /// so the data fits in a single line and reads as part of the page.
+    @ViewBuilder
+    private func compactStateRibbon(current: BloomState) -> some View {
+        HStack(spacing: AppTheme.Spacing.md) {
+            VStack(spacing: 2) {
+                Text("STATE")
+                    .font(.system(size: 8, weight: .medium))
+                    .tracking(2)
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+                Text(current.displayName.uppercased())
+                    .font(.system(size: 11, weight: .medium))
+                    .tracking(1.8)
+                    .foregroundStyle(current.color)
+            }
+
+            divider()
+
+            VStack(spacing: 2) {
+                Text("SHINEDUST")
+                    .font(.system(size: 8, weight: .medium))
+                    .tracking(2)
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+                Text("\(totalShinedust)")
+                    .font(.system(size: 13, weight: .light, design: .serif))
+                    .foregroundStyle(Color.appSoftBrown)
+            }
+
+            divider()
+
+            VStack(spacing: 2) {
+                Text("TIER")
+                    .font(.system(size: 8, weight: .medium))
+                    .tracking(2)
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+                Text(growthTier.displayName.uppercased())
+                    .font(.system(size: 11, weight: .medium))
+                    .tracking(1.8)
+                    .foregroundStyle(Color(red: 0.78, green: 0.55, blue: 0.30))
+            }
+
+            divider()
+
+            VStack(spacing: 2) {
+                Text("ENTRIES")
+                    .font(.system(size: 8, weight: .medium))
+                    .tracking(2)
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+                Text("\(stateHistory.count)")
+                    .font(.system(size: 13, weight: .light, design: .serif))
+                    .foregroundStyle(Color.appSoftBrown)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func divider() -> some View {
+        Rectangle()
+            .fill(Color.appSoftBrown.opacity(0.18))
+            .frame(width: 0.5, height: 22)
+    }
+
+    // MARK: - State Page Card 1: Pattern Analysis
+
+    @ViewBuilder
+    private var patternCard: some View {
+        let profile = try? modelContext.fetch(FetchDescriptor<UserProfile>()).first
+        let cycleLength = profile?.cycleLength ?? Self.defaultCycleLength
+        let periodLength = profile?.periodLength ?? Self.defaultPeriodLength
+        let lastPeriod = profile?.lastPeriodStartDate ?? periodDate
+        let analysis = PatternAnalysisEngine.analyze(
+            entries: symptomEntries,
+            cycleLength: cycleLength,
+            periodLength: periodLength,
+            lastPeriodStartDate: lastPeriod
+        )
+
+        PatternInsightsView(analysis: analysis)
+            .padding(.horizontal, AppTheme.Spacing.lg)
+    }
+
+    // MARK: - State Page Card 2: Phase Data
+    //
+    // Custom phase info card — same content as PhaseInfoCard but with
+    // Nourishment removed (so we don't duplicate the dedicated nutrition
+    // page) and the surrounding chrome lightened to match the editorial
+    // typography of the rest of the noted screen.
+
+    @ViewBuilder
+    private var phaseDataCard: some View {
+        if let position = cyclePosition {
+            let desc = PhaseDescriptions.description(for: position.phase)
+            let accent = position.phase.accentColor
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    PhaseIcon(phase: desc.phase, size: 26)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(desc.title.uppercased())
+                            .font(.system(size: 11, weight: .medium))
+                            .tracking(2.5)
+                            .foregroundStyle(accent.opacity(0.85))
+                        Text(desc.innerSeason)
+                            .font(.system(size: 22, weight: .light, design: .serif))
+                            .foregroundStyle(Color.appSoftBrown)
+                    }
+                }
+
+                Text(desc.overview)
+                    .font(.system(.footnote, design: .serif, weight: .light))
+                    .lineSpacing(3)
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                ScrollView {
+                    VStack(spacing: 0) {
+                        phaseDataRow(label: "HORMONES",   icon: "waveform.path", body: desc.hormoneHighlight, accent: accent)
+                        phaseDataRow(label: "SUPERPOWER", icon: "star.fill",     body: desc.superpower,       accent: accent)
+                        phaseDataRow(label: "MOVEMENT",   icon: "figure.walk",   body: desc.movement,         accent: accent)
+                        phaseDataRow(label: "DETOX",      icon: "leaf.fill",     body: desc.detox,            accent: accent)
+                    }
+                }
+                .frame(maxHeight: 280)
+            }
+            .padding(.horizontal, AppTheme.Spacing.lg)
+        }
+    }
+
+    @ViewBuilder
+    private func phaseDataRow(label: String, icon: String, body: String, accent: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .light))
+                    .foregroundStyle(accent)
+                Text(label)
+                    .font(.system(size: 9, weight: .medium))
+                    .tracking(2.5)
+                    .foregroundStyle(accent.opacity(0.85))
+            }
+            Text(body)
+                .font(.system(.subheadline, design: .serif, weight: .light))
+                .lineSpacing(3)
+                .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+            Rectangle()
+                .fill(Color.appSoftBrown.opacity(0.08))
+                .frame(height: 0.5)
+                .padding(.top, AppTheme.Spacing.xs)
+        }
+        .padding(.vertical, AppTheme.Spacing.sm)
+    }
+
+    // MARK: - State Page Card 3: Cycle Calendar
+    //
+    // Read-only embed of the existing PeriodCalendarView with no-op
+    // mutation callbacks — the user manages cycle data on the main
+    // Insights tab; this is a glance.
+
+    @ViewBuilder
+    private var cycleCalendarCard: some View {
+        let profile = try? modelContext.fetch(FetchDescriptor<UserProfile>()).first
+        let cycleLength = profile?.cycleLength ?? Self.defaultCycleLength
+        let periodLength = profile?.periodLength ?? Self.defaultPeriodLength
+        let lastPeriod = profile?.lastPeriodStartDate ?? periodDate
+        let boundaries = CycleCalculator.phaseBoundaries(
+            cycleLength: cycleLength,
+            periodLength: periodLength
+        )
+
+        ScrollView {
+            PeriodCalendarView(
+                cycleLogs: cycleLogs,
+                cycleLength: cycleLength,
+                periodLength: periodLength,
+                expectedNextPeriodStart: nil,
+                delayDays: 0,
+                lastPeriodStartDate: lastPeriod,
+                phaseBoundaries: boundaries,
+                onAddPeriod: { _ in },
+                onExtendPeriod: { _ in },
+                onRemovePeriod: { _ in },
+                onAddOvulation: { _ in },
+                onRemoveOvulation: { _ in },
+                manualOvulationDates: [],
+                canExtendPeriod: { _ in false },
+                canRemovePeriod: { _ in false },
+                isManualOvulation: { _ in false }
+            )
+            .padding(.horizontal, AppTheme.Spacing.lg)
+        }
+        .frame(maxHeight: 360)
+    }
+
+    private func dismissStatePage() {
+        withAnimation(.easeInOut(duration: 0.35)) {
+            showStatePage = false
+        }
+    }
+
+    /// Slow expansion + zoom-in. The flower opens to ~95% then drifts
+    /// inward to ~107% over several seconds, creating the feeling of
+    /// leaning in closer.
+    private func startStatePageZoom() {
+        statePageZoom = 0.85
+        withAnimation(.spring(response: 1.0, dampingFraction: 0.8)) {
+            statePageZoom = 1.0
+        }
+        withAnimation(.easeInOut(duration: 9.0).delay(1.0)) {
+            statePageZoom = 1.07
+        }
+    }
+
+    private func resetStatePageZoom() {
+        statePageZoom = 0.85
+    }
+
+    // MARK: - Nutrition Overlay
+    //
+    // Sun-tap entry into a focused nutrition page. By default we show
+    // only the time block matching the current hour — supplements,
+    // rituals, and foods rendered as three distinct compact sections on
+    // a single card. Toggling "view full protocol" switches the swipe
+    // pager from a single card to all three time blocks. A symptoms
+    // button at the bottom fades into the how-do-you-feel overlay.
+
+    private var nutritionOverlay: some View {
+        let plan = activeNutritionPlan
+        let cards = nutritionCards(for: plan)
+        let phaseColor = cyclePosition?.phase.accentColor ?? .appRose
+
+        return ZStack(alignment: .top) {
+            Color.appCream.opacity(0.98)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { dismissNutritionPage() }
+
+            VStack(spacing: AppTheme.Spacing.md) {
+                nutritionHeader(plan: plan, accent: phaseColor)
+                    .padding(.top, AppTheme.Spacing.xxl)
+
+                if cards.isEmpty {
+                    Text("Note your state to see today's nourishment.")
+                        .font(.system(.footnote, design: .serif).italic())
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                        .padding(.horizontal, AppTheme.Spacing.xl)
+                        .frame(maxHeight: .infinity)
+                } else {
+                    TabView(selection: $selectedNutritionCardId) {
+                        ForEach(cards) { card in
+                            NutritionCategoryCard(
+                                card: card,
+                                accent: phaseColor,
+                                isCompleted: { isNutritionItemCompleted($0) },
+                                onToggle: { toggleNutritionItem($0) }
+                            )
+                            .padding(.horizontal, AppTheme.Spacing.lg)
+                            .tag(card.id)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .always))
+                    .frame(maxHeight: .infinity)
+                }
+
+                viewFullProtocolToggle(accent: phaseColor)
+
+                symptomsButton(accent: phaseColor)
+                    .padding(.bottom, AppTheme.Spacing.lg)
+            }
+
+            HStack {
+                Spacer()
+                Button(action: dismissNutritionPage) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .light))
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+                        .padding(AppTheme.Spacing.md)
+                }
+            }
+            .padding(.top, AppTheme.Spacing.md)
+        }
+        .onAppear { ensureSelectedNutritionCard(plan: plan) }
+        .onChange(of: showFullProtocol) { _, _ in ensureSelectedNutritionCard(plan: plan) }
+    }
+
+    /// Closes the nutrition overlay (back to the main noted screen).
+    private func dismissNutritionPage() {
+        withAnimation(.easeInOut(duration: 0.35)) {
+            showNutritionPage = false
+            showFullProtocol = false
+        }
+    }
+
+    /// Closes the symptom overlay (back to the nutrition overlay below).
+    private func dismissSymptomPage() {
+        withAnimation(.easeInOut(duration: 0.35)) {
+            showSymptomPage = false
+            symptomQuery = ""
+            revealedSymptom = nil
+        }
+    }
+
+    // MARK: - Moon Overlay
+    //
+    // Tapping the moon widget fades the cream of the noted screen into a
+    // moonlit night sky. We render the same MoonView the main app uses
+    // (so the phase image and glow are exactly as elsewhere), then show
+    // the MoonWisdomCard with today's "advised / avoid / quote"
+    // guidance keyed to the lunar phase. Tap-to-dismiss like the other
+    // overlays.
+
+    private var moonOverlay: some View {
+        let phase = LunarPhase.from(moonPhase: moonState.moonPhase)
+        let wisdom = MoonWisdomContent.wisdom(for: moonState.moonPhase)
+
+        return ZStack(alignment: .top) {
+            SkyBackgroundView()
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { dismissMoonPage() }
+
+            ScrollView {
+                VStack(spacing: AppTheme.Spacing.lg) {
+                    VStack(spacing: AppTheme.Spacing.xs) {
+                        Text("TONIGHT'S MOON")
+                            .font(.system(size: 11, weight: .medium, design: .default))
+                            .tracking(3.5)
+                            .foregroundStyle(Color(red: 0.92, green: 0.78, blue: 0.55).opacity(0.85))
+                        Text(phase.displayName)
+                            .font(.system(size: 30, weight: .light, design: .serif))
+                            .foregroundStyle(.white.opacity(0.92))
+                    }
+                    .padding(.top, AppTheme.Spacing.xxl)
+
+                    MoonView(moonState: moonState)
+                        .frame(height: 240)
+
+                    MoonWisdomCard(wisdom: wisdom)
+                }
+                .padding(.bottom, AppTheme.Spacing.xxl)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { dismissMoonPage() }
+            }
+
+            HStack {
+                Spacer()
+                Button(action: dismissMoonPage) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .light))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .padding(AppTheme.Spacing.md)
+                }
+            }
+            .padding(.top, AppTheme.Spacing.md)
+        }
+    }
+
+    /// Closes the moon overlay (back to the main noted screen).
+    private func dismissMoonPage() {
+        withAnimation(.easeInOut(duration: 0.45)) {
+            showMoonPage = false
+        }
+    }
+
+    @State private var selectedNutritionCardId: String = ""
+
+    /// Builds one card per (time block × category) — supplements / rituals
+    /// / foods. With "view full protocol" off, only the current time
+    /// block's three cards are surfaced; with it on, all nine cards in
+    /// chronological order across the day.
+    private func nutritionCards(for plan: DailyNutritionPlan?) -> [NutritionCardModel] {
+        guard let plan else { return [] }
+        let blocks: [TimeBlock] = showFullProtocol
+            ? plan.timeBlocks
+            : [plan.timeBlocks.first(where: { $0.timeOfDay == currentTimeBlock }) ?? plan.morning]
+        return blocks.flatMap { block in
+            [
+                NutritionCardModel(block: block, category: .supplement, items: block.supplements),
+                NutritionCardModel(block: block, category: .ritual,     items: block.rituals),
+                NutritionCardModel(block: block, category: .food,       items: block.foods)
+            ]
+        }
+    }
+
+    /// Resets the selected card whenever the card set changes, picking
+    /// the supplements card of the current time block as the default.
+    private func ensureSelectedNutritionCard(plan: DailyNutritionPlan?) {
+        let cards = nutritionCards(for: plan)
+        guard !cards.isEmpty else { return }
+        if !cards.contains(where: { $0.id == selectedNutritionCardId }) {
+            let preferred = cards.first {
+                $0.block.timeOfDay == currentTimeBlock && $0.category == .supplement
+            } ?? cards.first
+            selectedNutritionCardId = preferred?.id ?? ""
+        }
+    }
+
+    @ViewBuilder
+    private func nutritionHeader(plan: DailyNutritionPlan?, accent: Color) -> some View {
+        VStack(spacing: AppTheme.Spacing.xs) {
+            Text("NOURISHMENT")
+                .font(.system(size: 11, weight: .medium, design: .default))
+                .tracking(3.5)
+                .foregroundStyle(accent.opacity(0.85))
+
+            if let phase = cyclePosition?.phase {
+                Text(phase.innerSeason)
+                    .font(.system(size: 26, weight: .light, design: .serif))
+                    .tracking(0.4)
+                    .foregroundStyle(Color.appSoftBrown)
+            }
+
+            if let plan {
+                Text(plan.todayFocus)
+                    .font(.system(.footnote, design: .serif, weight: .light))
+                    .italic()
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.65))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppTheme.Spacing.xl)
+                    .padding(.top, 2)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func viewFullProtocolToggle(accent: Color) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                showFullProtocol.toggle()
+            }
+        } label: {
+            HStack(spacing: AppTheme.Spacing.xs) {
+                Image(systemName: showFullProtocol ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 9, weight: .medium))
+                Text(showFullProtocol ? "HIDE FULL PROTOCOL" : "VIEW FULL PROTOCOL")
+                    .font(.system(size: 10, weight: .medium, design: .default))
+                    .tracking(2)
+            }
+            .foregroundStyle(accent.opacity(0.85))
+            .padding(.horizontal, AppTheme.Spacing.lg)
+            .padding(.vertical, AppTheme.Spacing.sm)
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(accent.opacity(0.35), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func symptomsButton(accent: Color) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.45)) {
+                showSymptomPage = true
+            }
+        } label: {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "heart.text.square")
+                    .font(.system(size: 13, weight: .light))
+                Text("IMPROVE THIS")
+                    .font(.system(size: 11, weight: .medium, design: .default))
+                    .tracking(3)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, AppTheme.Spacing.xl)
+            .padding(.vertical, AppTheme.Spacing.md)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(accent.opacity(0.85))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Symptom Overlay
+    //
+    // Free-text input + suggestion list of the existing Symptom enum.
+    // Picking a suggestion reveals a wisdom card (what it means / why
+    // it matters / what might help) keyed by the current cycle phase.
+
+    private var symptomOverlay: some View {
+        let phase = cyclePosition?.phase ?? .follicular
+        let accent = phase.accentColor
+        let match = matchedSymptom
+
+        return ZStack(alignment: .top) {
+            Color.appCream.opacity(0.98)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { dismissSymptomPage() }
+
+            VStack(spacing: AppTheme.Spacing.lg) {
+                VStack(spacing: AppTheme.Spacing.xs) {
+                    Text("IMPROVE THIS")
+                        .font(.system(size: 11, weight: .medium, design: .default))
+                        .tracking(3.5)
+                        .foregroundStyle(accent.opacity(0.85))
+                    Text(revealedSymptom == nil
+                         ? "type what's moving in you"
+                         : "in your \(phase.innerSeason.lowercased())")
+                        .font(.system(.footnote, design: .serif, weight: .light))
+                        .italic()
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+                }
+                .padding(.top, AppTheme.Spacing.xxl)
+
+                if let symptom = revealedSymptom {
+                    creativeWisdomReveal(
+                        wisdom: PeriodSymptomWisdom.wisdom(for: symptom, phase: phase),
+                        phase: phase,
+                        accent: accent
+                    )
+                    .padding(.horizontal, AppTheme.Spacing.lg)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                } else {
+                    symptomInputField(match: match, phase: phase, accent: accent)
+                        .padding(.horizontal, AppTheme.Spacing.lg)
+                        .transition(.opacity)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.bottom, AppTheme.Spacing.xxl)
+
+            HStack {
+                Button(action: dismissSymptomPage) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .light))
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.6))
+                        .padding(AppTheme.Spacing.md)
+                }
+                Spacer()
+                if revealedSymptom != nil {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            revealedSymptom = nil
+                            symptomQuery = ""
+                        }
+                    } label: {
+                        Text("ANOTHER")
+                            .font(.system(size: 10, weight: .medium))
+                            .tracking(2)
+                            .foregroundStyle(accent.opacity(0.75))
+                            .padding(AppTheme.Spacing.md)
+                    }
+                }
+            }
+            .padding(.top, AppTheme.Spacing.md)
+        }
+    }
+
+    /// Best-matching symptom for the current query. Tries exact display
+    /// name first, then a substring contains.
+    private var matchedSymptom: Symptom? {
+        let trimmed = symptomQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !trimmed.isEmpty else { return nil }
+        if let exact = Symptom.allCases.first(where: { $0.displayName.lowercased() == trimmed }) {
+            return exact
+        }
+        return Symptom.allCases.first { $0.displayName.lowercased().contains(trimmed) }
+    }
+
+    /// Single-field input with a live "matches: …" hint. Submitting the
+    /// field reveals the wisdom for the matched symptom.
+    @ViewBuilder
+    private func symptomInputField(match: Symptom?, phase: CyclePhase, accent: Color) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "pencil.line")
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundStyle(accent.opacity(0.5))
+                TextField("a feeling, a sensation, a tension…", text: $symptomQuery)
+                    .font(.system(.title3, design: .serif, weight: .light))
+                    .italic()
+                    .foregroundStyle(Color.appSoftBrown)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .onSubmit { confirmSymptom(match) }
             }
             .padding(.horizontal, AppTheme.Spacing.md)
+            .padding(.vertical, AppTheme.Spacing.sm)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(accent.opacity(0.4))
+                    .frame(height: 0.5)
+            }
+
+            HStack(spacing: AppTheme.Spacing.sm) {
+                if let match {
+                    Text(match.emoji)
+                        .font(.system(size: 18))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("MATCHES")
+                            .font(.system(size: 9, weight: .medium))
+                            .tracking(2)
+                            .foregroundStyle(accent.opacity(0.6))
+                        Text(match.displayName)
+                            .font(.system(.subheadline, design: .serif, weight: .light))
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                    }
+                    Spacer()
+                    Button {
+                        confirmSymptom(match)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text("REVEAL")
+                                .font(.system(size: 10, weight: .medium))
+                                .tracking(2)
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, AppTheme.Spacing.md)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(accent.opacity(0.85)))
+                    }
+                    .buttonStyle(.plain)
+                } else if !symptomQuery.isEmpty {
+                    Text("no match yet — try cramps, fatigue, bloating…")
+                        .font(.system(.caption, design: .serif, weight: .light))
+                        .italic()
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+                } else {
+                    Text("e.g. cramps · fatigue · bloating · headache · cravings")
+                        .font(.system(.caption, design: .serif, weight: .light))
+                        .italic()
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+                }
+            }
+            .frame(minHeight: 38)
+            .animation(.easeInOut(duration: 0.25), value: match)
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.35)) {
-                showStatePage = false
+    }
+
+    private func confirmSymptom(_ symptom: Symptom?) {
+        guard let symptom else { return }
+        withAnimation(.easeInOut(duration: 0.45)) {
+            revealedSymptom = symptom
+        }
+    }
+
+    /// Phase-themed dramatic reveal of the wisdom for a confirmed symptom.
+    /// Symptom name in cursive (matching the flower header), phase-tinted
+    /// "what it means" panel, "what might help" as pill chips, and warm
+    /// remedy as an italic accented callout.
+    @ViewBuilder
+    private func creativeWisdomReveal(
+        wisdom: SymptomWisdom,
+        phase: CyclePhase,
+        accent: Color
+    ) -> some View {
+        VStack(spacing: AppTheme.Spacing.lg) {
+            VStack(spacing: AppTheme.Spacing.xs) {
+                Text(wisdom.symptom.emoji)
+                    .font(.system(size: 38))
+                Text(wisdom.symptom.displayName)
+                    .font(.custom("SnellRoundhand-Bold", size: 38))
+                    .foregroundStyle(accent)
+                    .shadow(color: accent.opacity(0.18), radius: 5, y: 2)
+            }
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
+                HStack(spacing: 6) {
+                    Rectangle()
+                        .fill(accent.opacity(0.6))
+                        .frame(width: 18, height: 1)
+                    Text("WHY IT'S HAPPENING NOW")
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(2.5)
+                        .foregroundStyle(accent.opacity(0.85))
+                }
+                Text(wisdom.whatItMeans)
+                    .font(.system(.body, design: .serif, weight: .light))
+                    .italic()
+                    .lineSpacing(4)
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.92))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(AppTheme.Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(accent.opacity(0.08))
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
+                HStack(spacing: 6) {
+                    Rectangle()
+                        .fill(accent.opacity(0.6))
+                        .frame(width: 18, height: 1)
+                    Text("WHAT CAN BE DONE")
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(2.5)
+                        .foregroundStyle(accent.opacity(0.85))
+                }
+
+                FlowLayout(spacing: 8) {
+                    ForEach(wisdom.whatHelps, id: \.self) { tip in
+                        Text(tip)
+                            .font(.system(.footnote, design: .serif, weight: .light))
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.92))
+                            .padding(.horizontal, AppTheme.Spacing.sm)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(Color.appWarmWhite.opacity(0.9))
+                            )
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(accent.opacity(0.3), lineWidth: 0.5)
+                            )
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(alignment: .top, spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(accent.opacity(0.7))
+                    .padding(.top, 3)
+                Text(wisdom.warmRemedy)
+                    .font(.system(.subheadline, design: .serif, weight: .light))
+                    .italic()
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(AppTheme.Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(accent.opacity(0.6))
+                    .frame(width: 2)
+            }
+            .background(accent.opacity(0.04))
+        }
+    }
+
+    // MARK: - Growth Section (in state page)
+    //
+    // Shows the current growth tier, total shinedust collected, progress
+    // toward the next milestone, and a ledger of recent earning events.
+
+    @ViewBuilder
+    private func growthSection(recent: [ShinedustEvent]) -> some View {
+        let tier = growthTier
+        let total = totalShinedust
+        let floor = tier.floor
+        let next = tier.nextThreshold
+        let progress: CGFloat = {
+            guard let next else { return 1.0 }
+            let span = max(CGFloat(next - floor), 1)
+            return min(max((CGFloat(total) - CGFloat(floor)) / span, 0), 1)
+        }()
+
+        VStack(spacing: AppTheme.Spacing.lg) {
+            VStack(spacing: AppTheme.Spacing.xs) {
+                Text("Your garden")
+                    .warmTitle()
+                Text("each act of care makes the flower more magical")
+                    .captionStyle()
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, AppTheme.Spacing.lg)
+
+            VStack(spacing: AppTheme.Spacing.sm) {
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(Color(red: 1.0, green: 0.78, blue: 0.42))
+                    Text(tier.displayName)
+                        .font(.system(.title3, design: .serif).italic())
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.appSoftBrown)
+                    Spacer()
+                    Text("\(total) shinedust")
+                        .font(.system(.footnote, design: .rounded, weight: .medium))
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.7))
+                }
+                .padding(.horizontal, AppTheme.Spacing.lg)
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.appSoftBrown.opacity(0.12))
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 1.0, green: 0.82, blue: 0.55),
+                                        Color(red: 1.0, green: 0.92, blue: 0.72)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: geo.size.width * progress)
+                    }
+                }
+                .frame(height: 6)
+                .padding(.horizontal, AppTheme.Spacing.lg)
+
+                if let next {
+                    Text("\(max(next - total, 0)) more until \(GrowthLevel.Tier(rawValue: tier.rawValue + 1)?.displayName ?? "the next tier")")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                } else {
+                    Text("you've reached the magical tier — the flower keeps growing forever")
+                        .font(.system(.caption, design: .serif).italic())
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, AppTheme.Spacing.lg)
+                }
+            }
+
+            if recent.isEmpty {
+                Text("No drops yet — complete a breath practice, tick a nourishment item, or log a day to earn your first.")
+                    .font(.system(.footnote, design: .serif).italic())
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppTheme.Spacing.xl)
+            } else {
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    ForEach(recent) { event in
+                        HStack(spacing: AppTheme.Spacing.md) {
+                            Image(systemName: event.source.iconName)
+                                .foregroundStyle(event.source.accentColor)
+                                .frame(width: 18)
+                            Text(event.source.displayName)
+                                .font(.system(.subheadline, design: .serif))
+                                .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                            Spacer()
+                            Text("+\(event.amount)")
+                                .font(.system(.footnote, design: .rounded, weight: .medium))
+                                .foregroundStyle(Color(red: 0.82, green: 0.60, blue: 0.30))
+                            Text(Self.relativeTimeString(from: event.timestamp, to: .now))
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+                        }
+                        .padding(.horizontal, AppTheme.Spacing.lg)
+                    }
+                }
             }
         }
     }
@@ -925,7 +2181,10 @@ struct AutoFlowerCreatorView: View {
     private var footerButton: some View {
         switch phase {
         case .input:
-            if inputStep < Self.totalInputSteps - 1 {
+            if showingIntro {
+                beginButton
+                    .transition(.opacity)
+            } else if inputStep < Self.totalInputSteps - 1 {
                 continueButton
                     .transition(.opacity)
             } else {
@@ -948,6 +2207,34 @@ struct AutoFlowerCreatorView: View {
             createAnotherButton
                 .transition(.opacity)
         }
+    }
+
+    private var beginButton: some View {
+        let hasSaved = savedProfile != nil
+        return Button {
+            withAnimation(.easeInOut(duration: 0.55)) {
+                showingIntro = false
+            }
+        } label: {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Text(hasSaved ? "Build new flower" : "Begin")
+                    .font(.system(.headline, design: .rounded, weight: .semibold))
+                Image(systemName: "arrow.right")
+            }
+            .foregroundStyle(hasSaved ? Color.appRose : .white)
+            .padding(.horizontal, AppTheme.Spacing.xl)
+            .padding(.vertical, AppTheme.Spacing.md)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(hasSaved ? Color.clear : Color.appRose)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(hasSaved ? Color.appRose : Color.clear, lineWidth: 1.2)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.top, AppTheme.Spacing.sm)
     }
 
     private var continueButton: some View {
@@ -1092,6 +2379,13 @@ struct AutoFlowerCreatorView: View {
         let seed = "\(trimmed)|\(ageSelection)|\(Int(date.timeIntervalSinceReferenceDate))"
         let config = MoonWomanArchetypeEngine.flowerConfig(for: archetype, seed: seed)
         let flowerName = FlowerNamingEngine.flowerName(for: trimmed)
+
+        persistAutoFlowerProfile(
+            displayName: trimmed.capitalized,
+            ageSelection: ageSelection,
+            hasPeriod: hasPeriod,
+            periodDate: date
+        )
         let g = GeneratedFlower(
             displayName: trimmed.capitalized,
             flowerName: flowerName,
@@ -1146,26 +2440,30 @@ struct AutoFlowerCreatorView: View {
         }
     }
 
-    /// After the archetype title has faded in (~1.5s) we linger for a
-    /// moment, then softly close the flower back to a bud and invite the
-    /// user to press & hold it.
+    /// After the full bloom settles, linger briefly so the user can
+    /// take it in, then hand off to whatever comes next — in the
+    /// carousel this is the first slide via `onNoted`; standalone it
+    /// drops the flower into the mini-widget noted state.
     private func scheduleInteractiveTransition() {
         interactiveTransitionTask?.cancel()
         interactiveTransitionTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 4_500_000_000)
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
             if Task.isCancelled { return }
-            transitionToInteractive()
+            transitionFromCompleteToNoted()
         }
     }
 
-    private func transitionToInteractive() {
-        withAnimation(.easeInOut(duration: 1.6)) {
-            holdProgress = Self.restingBudProgress
-            bloomState = .bud
+    private func transitionFromCompleteToNoted() {
+        let finalState: BloomState = .flourishing
+        prepareDailyContext(for: finalState)
+        saveStateEntry(finalState)
+
+        withAnimation(.spring(response: 0.9, dampingFraction: 0.78)) {
+            notedBloomState = finalState
+            bloomState = finalState
+            phase = .noted
         }
-        withAnimation(.easeInOut(duration: 1.0).delay(0.4)) {
-            phase = .interactive
-        }
+        onNoted?()
     }
 
     // MARK: - Noting the Emotional State
@@ -1214,6 +2512,7 @@ struct AutoFlowerCreatorView: View {
         }
 
         scheduleHoldToast()
+        onNoted?()
     }
 
     /// Briefly surfaces a "Hold to update state" hint beneath the mini
@@ -1254,6 +2553,45 @@ struct AutoFlowerCreatorView: View {
     // — that advance is what used to make a tap look like a tiny bloom.
 
     private static let reentryHoldThreshold: TimeInterval = 0.35
+
+    private static let stateCardCount: Int = 4
+
+    /// Horizontal swipe on the LARGE state-page flower → rotate it a
+    /// step and advance the data card beneath: state ribbon →
+    /// pattern analysis → phase data → cycle calendar (and wraps).
+    private func handleStateFlowerSwipe(_ direction: Int) {
+        let count = Self.stateCardCount
+        let next = (notedCardIndex + direction + count) % count
+        withAnimation(.spring(response: 0.65, dampingFraction: 0.78)) {
+            notedCardIndex = next
+            flowerRotation += Double(direction) * 60
+        }
+    }
+
+    /// Drag gesture attached to the large state-page flower. Live drag
+    /// rotates the flower for tactile feedback; once the user passes
+    /// the swipe threshold, the gesture is "committed" and the content
+    /// beneath toggles on release.
+    private var stateFlowerSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 10)
+            .onChanged { value in
+                let dx = value.translation.width
+                stateFlowerDragRotation = Double(dx) * 0.4
+                if !stateFlowerDidSwipe, abs(dx) > 35 {
+                    stateFlowerDidSwipe = true
+                }
+            }
+            .onEnded { value in
+                let dx = value.translation.width
+                if stateFlowerDidSwipe {
+                    handleStateFlowerSwipe(dx > 0 ? 1 : -1)
+                    stateFlowerDidSwipe = false
+                }
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.78)) {
+                    stateFlowerDragRotation = 0
+                }
+            }
+    }
 
     private func handleMiniFlowerPress(_ pressed: Bool) {
         if pressed {
@@ -1458,6 +2796,105 @@ struct AutoFlowerCreatorView: View {
         return "a while ago"
     }
 
+    /// Persists / updates the single AutoFlowerProfile record. We keep
+    /// only one — the most recently completed setup — so "continue with
+    /// my flower" always resolves the same flower across launches.
+    private func persistAutoFlowerProfile(
+        displayName: String,
+        ageSelection: Int,
+        hasPeriod: Bool,
+        periodDate: Date
+    ) {
+        if let existing = savedProfiles.first {
+            existing.displayName = displayName
+            existing.ageSelection = ageSelection
+            existing.hasPeriod = hasPeriod
+            existing.periodDate = periodDate
+            existing.createdDate = .now
+        } else {
+            let profile = AutoFlowerProfile(
+                displayName: displayName,
+                ageSelection: ageSelection,
+                hasPeriod: hasPeriod,
+                periodDate: periodDate
+            )
+            modelContext.insert(profile)
+        }
+        try? modelContext.save()
+    }
+
+    /// Rebuilds the in-memory flower from a persisted profile and lands
+    /// on the noted screen. Cycle position + daily guidance are computed
+    /// fresh for today, so the flower is the same but the guidance
+    /// reflects where the user is in her cycle now.
+    private func loadFlower(from profile: AutoFlowerProfile) {
+        let date = profile.hasPeriod ? profile.periodDate : Date()
+        let archetype = MoonWomanArchetypeEngine.archetype(for: date)
+        let seed = "\(profile.displayName)|\(profile.ageSelection)|\(Int(date.timeIntervalSinceReferenceDate))"
+        let config = MoonWomanArchetypeEngine.flowerConfig(for: archetype, seed: seed)
+        let flowerName = FlowerNamingEngine.flowerName(for: profile.displayName)
+
+        nameInput = profile.displayName
+        ageSelection = profile.ageSelection
+        hasPeriod = profile.hasPeriod
+        periodDate = profile.periodDate
+
+        generated = GeneratedFlower(
+            displayName: profile.displayName,
+            flowerName: flowerName,
+            archetype: archetype,
+            config: config
+        )
+
+        let snapped: BloomState = .blooming
+        bloomState = snapped
+        holdProgress = snapped.bloomAmount
+        notedBloomState = snapped
+        showingIntro = false
+        prepareDailyContext(for: snapped)
+
+        withAnimation(.easeInOut(duration: 0.45)) {
+            phase = .noted
+        }
+        onNoted?()
+    }
+
+    /// Dev fast-forward: continues with the saved profile if one exists,
+    /// otherwise builds a default "Dev" flower so the noted UI is
+    /// reachable without running the full intake.
+    private func skipToNoted() {
+        if let profile = savedProfile {
+            loadFlower(from: profile)
+            return
+        }
+        let trimmed = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = trimmed.isEmpty ? "Dev" : trimmed.capitalized
+        let date = hasPeriod ? periodDate : Date()
+        let archetype = MoonWomanArchetypeEngine.archetype(for: date)
+        let seed = "\(displayName)|\(ageSelection)|\(Int(date.timeIntervalSinceReferenceDate))"
+        let config = MoonWomanArchetypeEngine.flowerConfig(for: archetype, seed: seed)
+        let flowerName = FlowerNamingEngine.flowerName(for: displayName)
+
+        generated = GeneratedFlower(
+            displayName: displayName,
+            flowerName: flowerName,
+            archetype: archetype,
+            config: config
+        )
+
+        let snapped: BloomState = .blooming
+        bloomState = snapped
+        holdProgress = snapped.bloomAmount
+        notedBloomState = snapped
+        showingIntro = false
+        prepareDailyContext(for: snapped)
+
+        withAnimation(.easeInOut(duration: 0.35)) {
+            phase = .noted
+        }
+        onNoted?()
+    }
+
     private func reset() {
         storyTask?.cancel()
         storyTask = nil
@@ -1478,8 +2915,17 @@ struct AutoFlowerCreatorView: View {
         reentryCompareMessage = nil
         reentryPreviousEntry = nil
         showStatePage = false
+        showNutritionPage = false
+        showFullProtocol = false
+        showSymptomPage = false
+        showMoonPage = false
+        symptomQuery = ""
+        revealedSymptom = nil
+        notedCardIndex = 0
+        flowerRotation = 0
         withAnimation(.spring(response: 0.7, dampingFraction: 0.78)) {
             phase = .input
+            showingIntro = true
             generated = nil
             holdProgress = Self.restingBudProgress
             bloomState = .bud
@@ -1560,6 +3006,13 @@ private struct MiniFlowerWidget: View {
     /// the halo — brighter flare when the flower is actually feeding.
     var isChannelling: Bool = false
 
+    /// 0…1 cumulative growth from accumulated shinedust.
+    var growthLevel: CGFloat = 0
+
+    /// Discrete tier unlocking layered decorations (halo ring → twinkles →
+    /// accent petal ring → magical aura).
+    var growthTier: GrowthLevel.Tier = .seed
+
     var onPressChange: (Bool) -> Void
 
     @State private var isPressed: Bool = false
@@ -1569,6 +3022,16 @@ private struct MiniFlowerWidget: View {
         ZStack {
             ShinyHalo(isHolding: isPressed || isChannelling)
                 .frame(width: 140, height: 140)
+
+            GrowthOverlay(
+                level: growthLevel,
+                tier: growthTier,
+                size: 76,
+                accentColor: config.outerColor,
+                showHaloRing: false
+            )
+            .frame(width: 140, height: 140)
+            .opacity(flowerHidden ? 0 : 1)
 
             FlowerBloomCanvas(
                 outerDesign: config.outerDesign,
@@ -1587,6 +3050,7 @@ private struct MiniFlowerWidget: View {
                 interactive: false
             )
             .frame(width: 76, height: 76)
+            .saturation(1.0 + Double(growthLevel) * 0.35)
             .scaleEffect(isPressed ? 1.0 : pulse)
             .opacity(flowerHidden ? 0 : 1)
             .animation(.easeInOut(duration: 0.25), value: isPressed)
@@ -1611,6 +3075,369 @@ private struct MiniFlowerWidget: View {
             withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
                 pulse = 1.1
             }
+        }
+    }
+}
+
+// MARK: - Shiny Halo
+//
+// MARK: - Nutrition Card (one category × one time block)
+
+struct NutritionCardModel: Identifiable {
+    let block: TimeBlock
+    let category: NutritionItemCategory
+    let items: [NutritionItem]
+
+    var id: String { "\(block.timeOfDay.rawValue).\(category.rawValue)" }
+}
+
+// Compact rendering of one (time block × category) tile — Supplements,
+// Rituals, or Foods of e.g. the morning block, on a single card with a
+// tickable list of items. Designed to fit the visible area without
+// scrolling: small height items + generous spacing.
+private struct NutritionCategoryCard: View {
+    let card: NutritionCardModel
+    let accent: Color
+    let isCompleted: (NutritionItem) -> Bool
+    let onToggle: (NutritionItem) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: card.block.timeOfDay.icon)
+                    .font(.system(size: 13, weight: .light))
+                    .foregroundStyle(accent.opacity(0.65))
+                Text(card.block.timeOfDay.displayName.uppercased())
+                    .font(.system(size: 9, weight: .medium))
+                    .tracking(2)
+                    .foregroundStyle(accent.opacity(0.7))
+                Spacer()
+                Text(card.block.timeOfDay.timeHint.uppercased())
+                    .font(.system(size: 9, weight: .light))
+                    .tracking(1.5)
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+            }
+
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: card.category.icon)
+                    .font(.system(size: 18, weight: .light))
+                    .foregroundStyle(accent)
+                Text(card.category.displayName)
+                    .font(.system(size: 26, weight: .light, design: .serif))
+                    .foregroundStyle(Color.appSoftBrown)
+            }
+
+            Rectangle()
+                .fill(accent.opacity(0.25))
+                .frame(height: 0.5)
+
+            if card.items.isEmpty {
+                Text("nothing for this rhythm")
+                    .font(.system(.subheadline, design: .serif, weight: .light))
+                    .italic()
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.45))
+                    .padding(.top, AppTheme.Spacing.sm)
+            } else {
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    ForEach(card.items) { item in
+                        let done = isCompleted(item)
+                        Button {
+                            onToggle(item)
+                        } label: {
+                            HStack(spacing: AppTheme.Spacing.md) {
+                                ZStack {
+                                    Circle()
+                                        .stroke(accent.opacity(done ? 0 : 0.4), lineWidth: 1)
+                                        .frame(width: 22, height: 22)
+                                    if done {
+                                        Circle()
+                                            .fill(accent.opacity(0.85))
+                                            .frame(width: 22, height: 22)
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                    }
+                                }
+
+                                Text(item.name)
+                                    .font(.system(.subheadline, design: .serif, weight: .light))
+                                    .foregroundStyle(Color.appSoftBrown.opacity(done ? 0.5 : 0.9))
+                                    .strikethrough(done, color: Color.appSoftBrown.opacity(0.45))
+                                    .multilineTextAlignment(.leading)
+
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 2)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(AppTheme.Spacing.lg)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: AppTheme.Radius.lg, style: .continuous)
+                .fill(Color.appWarmWhite.opacity(0.55))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.Radius.lg, style: .continuous)
+                .stroke(accent.opacity(0.18), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - State Ring Dots
+//
+// Compressed visualization of recent FlowerStateEntry records placed
+// circularly around the flower. Each dot's angular position encodes
+// recency (oldest at top, newest going clockwise) and its colour
+// encodes the bloom state. Subtle so the flower stays the hero.
+private struct StateRingDots: View {
+    let entries: [FlowerStateEntry]
+    let radius: CGFloat
+
+    var body: some View {
+        ZStack {
+            ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
+                let count = max(entries.count, 1)
+                let angle = (Double(index) / Double(count)) * 360.0 - 90
+                let r = radius
+                let x = cos(angle * .pi / 180) * r
+                let y = sin(angle * .pi / 180) * r
+                let amount = Double(entry.bloomState.bloomAmount)
+
+                Circle()
+                    .fill(entry.bloomState.color.opacity(0.35 + amount * 0.45))
+                    .frame(width: 4 + CGFloat(amount) * 6, height: 4 + CGFloat(amount) * 6)
+                    .offset(x: x, y: y)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Symptom Wisdom Card
+//
+// Renders a SymptomWisdom (what it means / why it matters / what helps
+// + warm remedy) in the editorial typography of the noted screen.
+private struct SymptomWisdomCard: View {
+    let wisdom: SymptomWisdom
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Text(wisdom.symptom.emoji)
+                    .font(.system(size: 22))
+                Text(wisdom.symptom.displayName)
+                    .font(.system(size: 22, weight: .light, design: .serif))
+                    .foregroundStyle(Color.appSoftBrown)
+            }
+
+            block(label: "WHAT IT MEANS", body: wisdom.whatItMeans, accent: accent)
+            block(label: "WHY IT MATTERS", body: wisdom.whyItMatters, accent: accent)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Rectangle()
+                        .fill(accent.opacity(0.6))
+                        .frame(width: 14, height: 1)
+                    Text("WHAT MIGHT HELP")
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(2.5)
+                        .foregroundStyle(accent.opacity(0.85))
+                }
+                ForEach(wisdom.whatHelps, id: \.self) { item in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("·")
+                            .font(.system(.body, design: .serif, weight: .light))
+                            .foregroundStyle(accent.opacity(0.7))
+                        Text(item)
+                            .font(.system(.subheadline, design: .serif, weight: .light))
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+
+            HStack(alignment: .top, spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(accent.opacity(0.7))
+                    .padding(.top, 3)
+                Text(wisdom.warmRemedy)
+                    .font(.system(.subheadline, design: .serif, weight: .light))
+                    .italic()
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(AppTheme.Spacing.md)
+            .background(accent.opacity(0.08))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func block(label: String, body: String, accent: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Rectangle()
+                    .fill(accent.opacity(0.6))
+                    .frame(width: 14, height: 1)
+                Text(label)
+                    .font(.system(size: 10, weight: .medium))
+                    .tracking(2.5)
+                    .foregroundStyle(accent.opacity(0.85))
+            }
+            Text(body)
+                .font(.system(.subheadline, design: .serif, weight: .light))
+                .foregroundStyle(Color.appSoftBrown.opacity(0.85))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+// MARK: - Sun Widget
+//
+// Companion to the mini flower: a small luminous sun pinned to the
+// flower's left side. Same visual vocabulary as the flower (radial
+// gradient core + soft halo + breath pulse), but rendered as a
+// stylised sun with a gentle ray ring. Tapping it opens the nutrition
+// page — sunlight feeds the flower in the same way nourishment does.
+private struct SunWidget: View {
+    var isHidden: Bool = false
+    var onTap: () -> Void
+
+    @State private var breathPhase: CGFloat = 0
+    @State private var rayPhase: CGFloat = 0
+
+    private let timer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+
+    private let core = Color(red: 1.0, green: 0.86, blue: 0.45)
+    private let outer = Color(red: 1.0, green: 0.72, blue: 0.36)
+
+    var body: some View {
+        let breath: CGFloat = 1.0 + sin(breathPhase) * 0.05
+
+        ZStack {
+            // Outer glow
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            core.opacity(0.35),
+                            outer.opacity(0.10),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: 3,
+                        endRadius: 50
+                    )
+                )
+                .frame(width: 100, height: 100)
+
+            // Rays
+            ForEach(0..<12, id: \.self) { i in
+                Capsule()
+                    .fill(core.opacity(0.45))
+                    .frame(width: 1.8, height: 9)
+                    .offset(y: -34)
+                    .rotationEffect(.degrees(Double(i) * 30 + Double(rayPhase) * 12))
+            }
+
+            // Sun face
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(0.95),
+                            core,
+                            outer
+                        ],
+                        center: .init(x: 0.4, y: 0.35),
+                        startRadius: 1,
+                        endRadius: 28
+                    )
+                )
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Circle()
+                        .stroke(outer.opacity(0.4), lineWidth: 0.5)
+                )
+        }
+        .frame(width: 100, height: 100)
+        .scaleEffect(breath)
+        .opacity(isHidden ? 0 : 1)
+        .animation(.easeInOut(duration: 0.4), value: isHidden)
+        .contentShape(Circle())
+        .onTapGesture(perform: onTap)
+        .onReceive(timer) { _ in
+            breathPhase += 1.0 / 60.0 * 1.4
+            rayPhase    += 1.0 / 60.0
+        }
+    }
+}
+
+// MARK: - Moon Widget
+//
+// Companion to the flower on the right: small mineral moon (the same
+// "moon_full" asset the main app uses, with the lavender + peach tint
+// overlays from MoonView) sitting inside a shiny halo so it shares the
+// flower's visual vocabulary.
+private struct MoonWidget: View {
+    var isHidden: Bool = false
+    var onTap: () -> Void = {}
+
+    @State private var breathPhase: CGFloat = 0
+    private let timer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        let breath: CGFloat = 1.0 + sin(breathPhase) * 0.05
+
+        ZStack {
+            ShinyHalo(isHolding: false)
+                .frame(width: 100, height: 100)
+
+            Image("moon_full")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 42, height: 42)
+                .saturation(1.4)
+                .overlay(
+                    ZStack {
+                        Circle()
+                            .fill(Color(red: 0.75, green: 0.65, blue: 0.88).opacity(0.18))
+                            .blendMode(.plusLighter)
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        Color(red: 0.98, green: 0.88, blue: 0.78).opacity(0.18),
+                                        Color(red: 0.85, green: 0.72, blue: 0.85).opacity(0.18)
+                                    ],
+                                    center: .center,
+                                    startRadius: 4,
+                                    endRadius: 22
+                                )
+                            )
+                            .blendMode(.overlay)
+                    }
+                )
+                .clipShape(Circle())
+        }
+        .frame(width: 100, height: 100)
+        .scaleEffect(breath)
+        .opacity(isHidden ? 0 : 1)
+        .animation(.easeInOut(duration: 0.4), value: isHidden)
+        .contentShape(Circle())
+        .onTapGesture(perform: onTap)
+        .onReceive(timer) { _ in
+            breathPhase += 1.0 / 60.0 * 1.2
         }
     }
 }
@@ -1693,6 +3520,148 @@ private struct ShinyHalo: View {
             breathPhase += 1.0 / 60.0 * 1.6
             shimmerPhase += 1.0 / 60.0 * 2.4
         }
+    }
+}
+
+// MARK: - Growth Overlay
+//
+// Layered decorations that sit behind / around the flower and unlock as
+// the user accumulates shinedust. Early tiers are subtle (a glow ring);
+// later tiers add orbiting twinkles, a decorative accent-petal ring,
+// and a magical aura. Everything is kept low-contrast so the flower
+// itself remains the hero — this is "the flower is becoming special",
+// not "look at all these effects".
+private struct GrowthOverlay: View {
+    let level: CGFloat
+    let tier: GrowthLevel.Tier
+    let size: CGFloat
+    let accentColor: Color
+    /// Suppresses the angular halo ring — used by the mini flower so it
+    /// only shows the soft ShinyHalo, not a hard outline.
+    var showHaloRing: Bool = true
+
+    private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+    @State private var phase: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            if showHaloRing, tier >= .sprouting {
+                haloRing
+            }
+            if tier >= .radiant {
+                accentPetalRing
+            }
+            if tier >= .budding {
+                twinkles
+            }
+            if tier >= .magical {
+                magicalAura
+            }
+        }
+        .allowsHitTesting(false)
+        .onReceive(timer) { _ in
+            phase += 1.0 / 30.0
+        }
+    }
+
+    // Tier 1: soft luminous ring framing the flower.
+    private var haloRing: some View {
+        let intensity = Double(min(1.0, (level - 0.05) * 3))
+        let pulseR: CGFloat = 1.0 + CGFloat(sin(phase * 1.6)) * 0.015
+        return Circle()
+            .stroke(
+                AngularGradient(
+                    colors: [
+                        Color(red: 1.0, green: 0.90, blue: 0.58).opacity(0.30 * intensity),
+                        Color(red: 1.0, green: 0.96, blue: 0.82).opacity(0.55 * intensity),
+                        Color(red: 1.0, green: 0.85, blue: 0.65).opacity(0.30 * intensity),
+                        Color(red: 1.0, green: 0.90, blue: 0.58).opacity(0.30 * intensity)
+                    ],
+                    center: .center,
+                    angle: .degrees(Double(phase) * 18)
+                ),
+                lineWidth: 2.0
+            )
+            .frame(width: size * 1.05, height: size * 1.05)
+            .scaleEffect(pulseR)
+            .blur(radius: 0.6)
+    }
+
+    // Tier 2: small stars drifting in a slow orbit around the flower.
+    private var twinkles: some View {
+        let count = tier >= .magical ? 14 : (tier >= .radiant ? 10 : 6)
+        let radius = size * 0.62
+        return ZStack {
+            ForEach(0..<count, id: \.self) { i in
+                twinkle(index: i, total: count, radius: radius)
+            }
+        }
+    }
+
+    private func twinkle(index: Int, total: Int, radius: CGFloat) -> some View {
+        let seed = CGFloat(index) * 3.1
+        let orbitSpeed: CGFloat = 0.35
+        let angle = CGFloat(index) * (2 * .pi / CGFloat(total))
+            + phase * orbitSpeed
+            + sin(phase * 0.6 + seed) * 0.12
+        let r = radius + sin(phase * 1.1 + seed * 0.7) * 4
+        let x = cos(angle) * r
+        let y = sin(angle) * r
+        let pulse = 0.5 + 0.5 * sin(phase * 2.0 + seed * 1.3)
+        let s: CGFloat = 2.2 + CGFloat(index % 3) * 0.8
+        let color = index % 2 == 0
+            ? Color(red: 1.0, green: 0.92, blue: 0.65)
+            : Color.white
+
+        return Image(systemName: "sparkle")
+            .font(.system(size: s * 3))
+            .foregroundStyle(color.opacity(Double(pulse) * 0.85))
+            .offset(x: x, y: y)
+    }
+
+    // Tier 3: a ring of tiny accent petals (dots in the flower's outer
+    // colour) rotating slowly beyond the main bloom silhouette.
+    private var accentPetalRing: some View {
+        let count = tier >= .magical ? 16 : 12
+        let radius = size * 0.52
+        return ZStack {
+            ForEach(0..<count, id: \.self) { i in
+                accentPetal(index: i, total: count, radius: radius)
+            }
+        }
+        .rotationEffect(.degrees(Double(phase) * 6))
+    }
+
+    private func accentPetal(index: Int, total: Int, radius: CGFloat) -> some View {
+        let angle = CGFloat(index) * (2 * .pi / CGFloat(total))
+        let x = cos(angle) * radius
+        let y = sin(angle) * radius
+        let breath = 0.85 + 0.15 * sin(phase * 1.2 + CGFloat(index) * 0.5)
+        return Capsule()
+            .fill(accentColor.opacity(0.55))
+            .frame(width: 4, height: 9 * breath)
+            .rotationEffect(.radians(Double(angle) + .pi / 2))
+            .offset(x: x, y: y)
+    }
+
+    // Tier 4: full pulsing aura so the flower reads as "magical".
+    private var magicalAura: some View {
+        let pulse = 0.75 + 0.25 * sin(phase * 1.2)
+        return Circle()
+            .fill(
+                RadialGradient(
+                    colors: [
+                        Color(red: 1.0, green: 0.92, blue: 0.70).opacity(0.25 * Double(pulse)),
+                        Color(red: 1.0, green: 0.85, blue: 0.72).opacity(0.12 * Double(pulse)),
+                        .clear
+                    ],
+                    center: .center,
+                    startRadius: size * 0.2,
+                    endRadius: size * 0.85
+                )
+            )
+            .frame(width: size * 1.7, height: size * 1.7)
+            .blendMode(.plusLighter)
     }
 }
 

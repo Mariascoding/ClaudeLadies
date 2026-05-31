@@ -6,56 +6,112 @@ struct TimeBlockCard: View {
     let completedCount: Int
     let isItemCompleted: (NutritionItem) -> Bool
     let onToggle: (NutritionItem) -> Void
+    var onDismiss: ((NutritionItem) -> Void)?
+
+    @State private var showFoods = false
+
+    private var foodCompletedCount: Int {
+        timeBlock.foods.filter { isItemCompleted($0) }.count
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             // Header
             HStack {
                 Image(systemName: timeBlock.timeOfDay.icon)
-                    .font(.title3)
-                    .foregroundStyle(accentColor)
+                    .font(.body)
+                    .foregroundStyle(accentColor.opacity(0.7))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(timeBlock.timeOfDay.displayName)
-                        .warmHeadline()
-                    Text(timeBlock.timeOfDay.timeHint)
-                        .captionStyle()
-                }
+                Text(timeBlock.timeOfDay.displayName)
+                    .sectionLabel(color: accentColor)
+
+                Text(timeBlock.timeOfDay.timeHint)
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.35))
 
                 Spacer()
 
                 Text("\(completedCount)/\(timeBlock.totalCount)")
-                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                    .foregroundStyle(completedCount == timeBlock.totalCount && timeBlock.totalCount > 0 ? accentColor : Color.appSoftBrown.opacity(0.5))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(completedCount == timeBlock.totalCount && timeBlock.totalCount > 0 ? accentColor : Color.appSoftBrown.opacity(0.35))
             }
 
-            // Categorized items
-            if !timeBlock.foods.isEmpty {
-                categorySection(NutritionItemCategory.food, items: timeBlock.foods)
-            }
-
+            // Supplements — always visible
             if !timeBlock.supplements.isEmpty {
-                categorySection(NutritionItemCategory.supplement, items: timeBlock.supplements)
+                categorySection(.supplement, items: timeBlock.supplements)
             }
 
+            // Rituals — always visible
             if !timeBlock.rituals.isEmpty {
-                categorySection(NutritionItemCategory.ritual, items: timeBlock.rituals)
+                categorySection(.ritual, items: timeBlock.rituals)
+            }
+
+            // Foods — collapsed by default
+            if !timeBlock.foods.isEmpty {
+                foodsCollapsibleSection
             }
         }
         .warmCard()
     }
 
+    // MARK: - Foods (collapsible)
+
+    private var foodsCollapsibleSection: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+            Button {
+                withAnimation(AppTheme.gentleAnimation) {
+                    showFoods.toggle()
+                }
+            } label: {
+                HStack(spacing: AppTheme.Spacing.xs) {
+                    Image(systemName: NutritionItemCategory.food.icon)
+                        .font(.caption2)
+                        .foregroundStyle(accentColor.opacity(0.5))
+
+                    Text(NutritionItemCategory.food.displayName)
+                        .sectionLabel()
+
+                    if !showFoods {
+                        Text("\(foodCompletedCount)/\(timeBlock.foods.count)")
+                            .font(.system(.caption2, design: .rounded, weight: .medium))
+                            .foregroundStyle(Color.appSoftBrown.opacity(0.3))
+                    }
+
+                    Spacer()
+
+                    Image(systemName: showFoods ? "chevron.up" : "chevron.down")
+                        .font(.caption2)
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.25))
+                }
+            }
+
+            if showFoods {
+                ForEach(timeBlock.foods) { item in
+                    NutritionCheckItem(
+                        item: item,
+                        isCompleted: isItemCompleted(item),
+                        accentColor: accentColor,
+                        onToggle: { onToggle(item) },
+                        onDismiss: item.isPersonal ? nil : (onDismiss != nil ? { onDismiss?(item) } : nil)
+                    )
+                    .padding(.leading, AppTheme.Spacing.lg)
+                }
+                .transition(.opacity)
+            }
+        }
+    }
+
+    // MARK: - Category Section (supplements, rituals)
+
     private func categorySection(_ category: NutritionItemCategory, items: [NutritionItem]) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
             HStack(spacing: AppTheme.Spacing.xs) {
                 Image(systemName: category.icon)
-                    .font(.caption)
-                    .foregroundStyle(accentColor.opacity(0.7))
-                    .frame(width: 16)
+                    .font(.caption2)
+                    .foregroundStyle(accentColor.opacity(0.5))
 
                 Text(category.displayName)
-                    .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
-                    .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+                    .sectionLabel()
             }
 
             ForEach(items) { item in
@@ -63,7 +119,8 @@ struct TimeBlockCard: View {
                     item: item,
                     isCompleted: isItemCompleted(item),
                     accentColor: accentColor,
-                    onToggle: { onToggle(item) }
+                    onToggle: { onToggle(item) },
+                    onDismiss: item.isPersonal ? nil : (onDismiss != nil ? { onDismiss?(item) } : nil)
                 )
                 .padding(.leading, AppTheme.Spacing.lg)
             }

@@ -422,17 +422,38 @@ enum PeriodSymptomWisdom {
         }
     }
 
-    /// Returns the most common symptoms for each cycle phase
+    /// Returns all symptoms, with the most likely ones for the phase listed first
     static func commonSymptoms(for phase: CyclePhase) -> [Symptom] {
+        let prioritised: [Symptom]
         switch phase {
         case .menstrual:
-            [.cramps, .headache, .fatigue, .backPain, .bloating, .nausea, .appetiteLoss, .sadness, .insomnia, .hairLoss]
+            prioritised = [.cramps, .fatigue, .headache, .backPain, .bloating, .nausea, .appetiteLoss, .sadness, .insomnia, .hairLoss]
         case .follicular:
-            [.energized, .focused, .glowingSkin, .joyful, .cravings, .acne, .bloating]
+            prioritised = [.energized, .focused, .glowingSkin, .joyful, .cravings, .acne, .bloating]
         case .ovulation:
-            [.energized, .joyful, .glowingSkin, .bloating, .breastTenderness, .headache]
+            prioritised = [.energized, .joyful, .glowingSkin, .bloating, .breastTenderness, .headache]
         case .luteal:
-            [.irritability, .anxiety, .moodSwings, .cravings, .bloating, .breastTenderness, .fatigue, .brainFog, .acne, .insomnia, .restless, .headache, .digestiveIssues, .dryness]
+            prioritised = [.irritability, .anxiety, .moodSwings, .cravings, .bloating, .breastTenderness, .fatigue, .brainFog, .acne, .insomnia, .restless, .headache, .digestiveIssues, .dryness]
         }
+        // Append any remaining symptoms not already in the prioritised list
+        let remaining = Symptom.allCases.filter { !prioritised.contains($0) }
+        return prioritised + remaining
+    }
+
+    /// Returns all symptoms, with goal-appropriate ones first
+    static func symptoms(for goal: WellnessGoal) -> [Symptom] {
+        let prioritised: [Symptom]
+        switch goal {
+        case .prenatal:
+            prioritised = [.nausea, .fatigue, .cravings, .headache, .bloating, .backPain, .insomnia, .anxiety, .moodSwings, .digestiveIssues, .dryness, .glowingSkin]
+        case .postnatal:
+            prioritised = [.fatigue, .sadness, .anxiety, .hairLoss, .brainFog, .insomnia, .moodSwings, .backPain, .appetiteLoss, .dryness]
+        case .menopause:
+            prioritised = [.insomnia, .fatigue, .anxiety, .moodSwings, .jointPain, .brainFog, .dryness, .hairLoss, .irritability, .bloating, .headache, .restless]
+        default:
+            return Symptom.allCases
+        }
+        let remaining = Symptom.allCases.filter { !prioritised.contains($0) }
+        return prioritised + remaining
     }
 }

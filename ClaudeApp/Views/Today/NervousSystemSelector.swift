@@ -6,13 +6,24 @@ struct NervousSystemSelector: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            Text("How does your nervous system feel?")
-                .warmHeadline()
+            Text("Nervous System")
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+                .textCase(.uppercase)
+                .kerning(1.0)
 
             HStack(spacing: AppTheme.Spacing.sm) {
                 ForEach(NervousSystemState.allCases) { state in
                     stateButton(state)
                 }
+            }
+
+            if let selected = selectedState {
+                Text(selected.description)
+                    .font(.system(.caption, design: .serif))
+                    .italic()
+                    .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                    .transition(.opacity)
             }
         }
         .warmCard()
@@ -32,12 +43,12 @@ struct NervousSystemSelector: View {
                     .foregroundStyle(isSelected ? .white : state.color)
 
                 Text(state.displayName)
-                    .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
+                    .font(.system(.caption2, design: .rounded, weight: .medium))
                     .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppTheme.Spacing.md)
-            .background(isSelected ? state.color : state.color.opacity(0.08))
+            .background(isSelected ? state.color : state.color.opacity(0.06))
             .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.md))
         }
     }

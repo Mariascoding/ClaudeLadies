@@ -101,7 +101,7 @@ struct TodayView: View {
                         .frame(height: 0)
 
                         Color.clear
-                            .frame(height: 480)
+                            .frame(height: 380)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 withAnimation(.easeOut(duration: 0.3)) {
@@ -109,11 +109,25 @@ struct TodayView: View {
                                 }
                             }
 
-                        // Affirmation
-                        Text("\"\(guidance.affirmation)\"")
-                            .affirmationStyle()
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, AppTheme.Spacing.lg)
+                        // Affirmation — centrepiece
+                        VStack(spacing: AppTheme.Spacing.sm) {
+                            Capsule()
+                                .fill(guidance.phase.accentColor.opacity(0.25))
+                                .frame(width: 24, height: 2)
+
+                            Text(guidance.affirmation)
+                                .font(.system(.title3, design: .serif))
+                                .italic()
+                                .foregroundStyle(Color.appSoftBrown.opacity(0.75))
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(4)
+                                .padding(.horizontal, AppTheme.Spacing.xl)
+
+                            Capsule()
+                                .fill(guidance.phase.accentColor.opacity(0.25))
+                                .frame(width: 24, height: 2)
+                        }
+                        .padding(.vertical, AppTheme.Spacing.md)
 
                         // Health metrics
                         if let summary = healthManager.todaySummary {

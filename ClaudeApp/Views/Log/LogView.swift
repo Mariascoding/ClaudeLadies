@@ -23,12 +23,8 @@ struct LogView: View {
 
                     // Symptom picker
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-                        HStack(spacing: AppTheme.Spacing.sm) {
-                            Image(systemName: "heart.text.square")
-                                .foregroundStyle(Color.appRose)
-                            Text("How are you feeling?")
-                                .warmHeadline()
-                        }
+                        Text("How Are You Feeling?")
+                            .sectionLabel(color: Color.appRose)
 
                         SymptomPickerView(
                             selectedSymptoms: viewModel.todaySymptoms,
@@ -45,12 +41,8 @@ struct LogView: View {
 
                     // Custom tags
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-                        HStack(spacing: AppTheme.Spacing.sm) {
-                            Image(systemName: "tag")
-                                .foregroundStyle(Color.appTerracotta)
-                            Text("Custom Tags")
-                                .warmHeadline()
-                        }
+                        Text("Custom Tags")
+                            .sectionLabel(color: Color.appTerracotta)
 
                         TagInputView(
                             currentTags: viewModel.todayTags,

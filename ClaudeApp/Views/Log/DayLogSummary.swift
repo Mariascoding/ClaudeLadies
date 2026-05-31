@@ -9,12 +9,8 @@ struct DayLogSummary: View {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-                HStack(spacing: AppTheme.Spacing.sm) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.appSage)
-                    Text("Logged Today")
-                        .warmHeadline()
-                }
+                Text("Logged Today")
+                    .sectionLabel(color: Color.appSage)
 
                 FlowLayout(spacing: AppTheme.Spacing.xs) {
                     ForEach(Array(symptoms).sorted(by: { $0.displayName < $1.displayName })) { symptom in

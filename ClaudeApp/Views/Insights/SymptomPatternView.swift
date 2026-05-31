@@ -8,15 +8,11 @@ struct SymptomPatternView: View {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-                HStack(spacing: AppTheme.Spacing.sm) {
-                    Image(systemName: "chart.bar.fill")
-                        .foregroundStyle(Color.appTerracotta)
-                    Text("Your Patterns")
-                        .warmHeadline()
-                }
+                Text("Your Patterns")
+                    .sectionLabel(color: Color.appTerracotta)
 
                 Text("Most logged symptoms over the last 90 days")
-                    .captionStyle()
+                    .serifCaption()
 
                 VStack(spacing: AppTheme.Spacing.sm) {
                     let maxCount = frequencies.first?.count ?? 1
@@ -27,17 +23,17 @@ struct SymptomPatternView: View {
                                 .font(.caption)
 
                             Text(item.symptom.displayName)
-                                .font(.system(.caption, design: AppTheme.fontFamily))
-                                .foregroundStyle(Color.appSoftBrown)
+                                .font(.system(.caption, design: .serif))
+                                .foregroundStyle(Color.appSoftBrown.opacity(0.8))
                                 .frame(width: 100, alignment: .leading)
 
                             GeometryReader { geo in
                                 let fraction = CGFloat(item.count) / CGFloat(max(1, maxCount))
-                                RoundedRectangle(cornerRadius: AppTheme.Radius.sm)
-                                    .fill(Color.appRose.opacity(0.3))
+                                Capsule()
+                                    .fill(Color.appRose.opacity(0.25))
                                     .frame(width: geo.size.width * fraction)
                             }
-                            .frame(height: 16)
+                            .frame(height: 14)
                         }
                     }
                 }

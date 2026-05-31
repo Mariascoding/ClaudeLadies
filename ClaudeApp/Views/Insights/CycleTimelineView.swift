@@ -8,7 +8,7 @@ struct CycleTimelineView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
             Text("Your Cycle")
-                .warmHeadline()
+                .sectionLabel()
 
             GeometryReader { geo in
                 let width = geo.size.width

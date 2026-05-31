@@ -92,89 +92,45 @@ struct FlowerPartPicker<Option: Hashable & Identifiable & CaseIterable>: View wh
                 }
             }
 
-            // Inline color palette
+            // Inline spectrum color picker
             if showColors {
-                colorPalette
+                VStack(spacing: AppTheme.Spacing.xs) {
+                    if let paintBinding = isPaintMode {
+                        paintModeToggle(paintBinding)
+                    }
+                    SpectrumColorPicker(selection: activeColorBinding)
+                }
+                .padding(.top, AppTheme.Spacing.xs)
             }
         }
         .warmCard()
     }
 
-    private var colorPalette: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6), spacing: 8) {
-            // Color wheel for custom colors — bound to the active target
-            ColorPicker("", selection: activeColorBinding, supportsOpacity: false)
-                .labelsHidden()
-                .frame(width: 32, height: 32)
-                .overlay(
-                    Circle()
-                        .fill(
-                            AngularGradient(
-                                colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red],
-                                center: .center
-                            )
-                        )
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            Circle()
-                                .fill(Color.appWarmWhite)
-                                .frame(width: 14, height: 14)
-                        )
-                        .overlay(
-                            Circle()
-                                .strokeBorder(Color.appSoftBrown.opacity(0.15), lineWidth: 1)
-                        )
-                        .allowsHitTesting(false)
+    private func paintModeToggle(_ paintBinding: Binding<Bool>) -> some View {
+        HStack {
+            Button {
+                withAnimation(AppTheme.gentleAnimation) {
+                    paintBinding.wrappedValue.toggle()
+                }
+            } label: {
+                let brushColor = paintColor?.wrappedValue ?? part.accentColor
+                HStack(spacing: AppTheme.Spacing.xs) {
+                    Image(systemName: paintBinding.wrappedValue ? "paintbrush.fill" : "paintbrush")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("Paint")
+                        .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
+                }
+                .foregroundStyle(paintBinding.wrappedValue ? brushColor : Color.appSoftBrown.opacity(0.6))
+                .padding(.horizontal, AppTheme.Spacing.sm)
+                .padding(.vertical, AppTheme.Spacing.xs)
+                .background(
+                    Capsule()
+                        .fill(paintBinding.wrappedValue
+                              ? (paintColor?.wrappedValue ?? part.accentColor).opacity(0.15)
+                              : Color.appSoftBrown.opacity(0.05))
                 )
-
-            // Paintbrush circle — tap to toggle paint mode
-            if let paintBinding = isPaintMode {
-                Button {
-                    withAnimation(AppTheme.gentleAnimation) {
-                        paintBinding.wrappedValue.toggle()
-                    }
-                } label: {
-                    let brushColor = paintColor?.wrappedValue ?? part.accentColor
-                    ZStack {
-                        Circle()
-                            .fill(paintBinding.wrappedValue ? brushColor : Color.appSoftBrown.opacity(0.08))
-                            .frame(width: 32, height: 32)
-                        Image(systemName: paintBinding.wrappedValue ? "paintbrush.fill" : "paintbrush")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(paintBinding.wrappedValue ? .white : Color.appSoftBrown.opacity(0.6))
-                    }
-                    .overlay(
-                        Circle()
-                            .strokeBorder(
-                                paintBinding.wrappedValue ? brushColor : Color.appSoftBrown.opacity(0.15),
-                                lineWidth: paintBinding.wrappedValue ? 2.5 : 1
-                            )
-                    )
-                }
             }
-
-            // Preset colors — route to active target
-            ForEach(FlowerColor.allCases) { fc in
-                Button {
-                    withAnimation(AppTheme.gentleAnimation) {
-                        activeColorBinding.wrappedValue = fc.color
-                    }
-                } label: {
-                    Circle()
-                        .fill(fc.color)
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(
-                                    FlowerColor.closest(to: highlightedColor) == fc
-                                        ? Color.appSoftBrown
-                                        : Color.appSoftBrown.opacity(0.15),
-                                    lineWidth: FlowerColor.closest(to: highlightedColor) == fc ? 2.5 : 1
-                                )
-                        )
-                }
-            }
+            Spacer()
         }
-        .padding(.top, AppTheme.Spacing.xs)
     }
 }

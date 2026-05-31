@@ -9,6 +9,14 @@ final class UserProfile {
     var hasCompletedOnboarding: Bool
     var wellnessGoalRaw: String?
     var nutritionProtocolRaw: String?
+    var pregnancyStartDate: Date?
+    var menopauseLastBleedDate: Date?
+    var dietaryPreferenceRaw: String?
+
+    var dietaryPreference: DietaryPreference {
+        get { dietaryPreferenceRaw.flatMap { DietaryPreference(rawValue: $0) } ?? .omnivore }
+        set { dietaryPreferenceRaw = newValue.rawValue }
+    }
 
     var wellnessGoal: WellnessGoal? {
         get { wellnessGoalRaw.flatMap { WellnessGoal(rawValue: $0) } }

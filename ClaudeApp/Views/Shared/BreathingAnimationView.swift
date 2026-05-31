@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct BreathingAnimationView: View {
     let exercise: BreathworkExercise
@@ -6,6 +7,8 @@ struct BreathingAnimationView: View {
     @State private var breathPhase: BreathPhase = .inhale
     @State private var currentRound = 1
     @State private var isActive = false
+
+    @Environment(\.modelContext) private var modelContext
 
     private enum BreathPhase: String {
         case inhale = "Breathe in"
@@ -111,8 +114,16 @@ struct BreathingAnimationView: View {
                 self.currentRound += 1
                 self.runBreathCycle()
             } else {
-                self.stopBreathing()
+                self.completeBreathing()
             }
         }
+    }
+
+    /// Called only when all rounds finish naturally. Awards shinedust so
+    /// a completed practice adds to the flower's growth; the manual Stop
+    /// button bypasses this and does not reward partial sessions.
+    private func completeBreathing() {
+        Shinedust.award(.breathingExercise, in: modelContext)
+        stopBreathing()
     }
 }

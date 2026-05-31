@@ -16,19 +16,20 @@ enum Flower3DSceneBuilder {
         innerColor: Color,
         stamenColor: Color,
         centerColor: Color,
-        geometry: FlowerGeometry
+        geometry: FlowerGeometry,
+        useToonShader: Bool = false
     ) -> SCNScene {
         let scene = SCNScene()
         scene.background.contents = UIColor(Color.appCream)
 
         let rootNode = scene.rootNode
 
-        // Camera
+        // Camera — pulled in close so the flower fills the frame
         let cameraNode = SCNNode()
         cameraNode.camera = SCNCamera()
-        cameraNode.camera?.fieldOfView = 45
-        cameraNode.position = SCNVector3(0, 1.2, 2.5)
-        cameraNode.look(at: SCNVector3(0, 0, 0))
+        cameraNode.camera?.fieldOfView = 42
+        cameraNode.position = SCNVector3(0, 0.85, 1.6)
+        cameraNode.look(at: SCNVector3(0, 0.05, 0))
         rootNode.addChildNode(cameraNode)
 
         // Lights
@@ -44,21 +45,24 @@ enum Flower3DSceneBuilder {
             innerDesign: innerDesign,
             outerColor: outerColor,
             innerColor: innerColor,
-            geometry: geometry
+            geometry: geometry,
+            useToonShader: useToonShader
         )
 
         addStamen(
             to: flowerRoot,
             design: stamenDesign,
             color: stamenColor,
-            geometry: geometry
+            geometry: geometry,
+            useToonShader: useToonShader
         )
 
         addCenter(
             to: flowerRoot,
             design: centerDesign,
             color: centerColor,
-            geometry: geometry
+            geometry: geometry,
+            useToonShader: useToonShader
         )
 
         // Bloom glow light (off by default)
@@ -73,16 +77,48 @@ enum Flower3DSceneBuilder {
         bloomGlow.position = SCNVector3(0, 0.2, 0)
         flowerRoot.addChildNode(bloomGlow)
 
+        // Sparkle nodes (hidden by default, animated in applyBloom)
+        let sparkleGroup = SCNNode()
+        sparkleGroup.name = "sparkleGroup"
+        for i in 0..<20 {
+            let theta = Float(i) / 20.0 * 2 * Float.pi + Float.random(in: -0.3...0.3)
+            let r = Float.random(in: 0.3...0.6)
+
+            let sphere = SCNSphere(radius: 0.008)
+            sphere.segmentCount = 6
+            let mat = SCNMaterial()
+            mat.lightingModel = .constant
+            mat.diffuse.contents = UIColor(red: 1.0, green: 0.95, blue: 0.8, alpha: 1.0)
+            sphere.materials = [mat]
+
+            let node = SCNNode(geometry: sphere)
+            node.name = "sparkle_\(i)_\(theta)_\(r)"
+            node.opacity = 0
+            node.position = SCNVector3(r * cos(theta), 0, r * sin(theta))
+            sparkleGroup.addChildNode(node)
+        }
+        flowerRoot.addChildNode(sparkleGroup)
+
         rootNode.addChildNode(flowerRoot)
         return scene
     }
 
     // MARK: - Bloom Animation
 
-    static func applyBloom(to scene: SCNScene, progress: CGFloat) {
+    static func applyBloom(to scene: SCNScene, progress: CGFloat, time: CGFloat) {
         guard let flowerRoot = scene.rootNode.childNode(withName: "flowerRoot", recursively: false) else { return }
 
-        let p = min(max(progress, 0), 1)
+        let p = min(max(Float(progress), 0), 1)
+        let t = Float(time)
+
+        // Derived time phases
+        let breathPhase = t * 2.0
+        let dancePhase = t * 0.6
+        let danceAmount = min(max((p - 0.75) / 0.25, 0), 1)
+
+        // Breath scale on flowerRoot (always active)
+        let breathScale: Float = 1.0 + sin(breathPhase) * 0.015
+        flowerRoot.scale = SCNVector3(breathScale, breathScale, breathScale)
 
         // Layer activation cascade (same timing as 2D)
         let centerProg = layerProgress(p, activationStart: 0.00, fullAt: 0.20)
@@ -91,67 +127,171 @@ enum Flower3DSceneBuilder {
         let frontProg  = layerProgress(p, activationStart: 0.25, fullAt: 0.65)
         let backProg   = layerProgress(p, activationStart: 0.35, fullAt: 0.80)
 
+        // Enhanced bloom angles — extra open at 80%+
+        let extraOpen = min(max((p - 0.8) / 0.2, 0), 1)
+
         // Back outer petals
         if let group = flowerRoot.childNode(withName: "backOuterGroup", recursively: false) {
-            let s = Float(0.1 + backProg * 0.9)
+            let s: Float = 0.1 + backProg * 0.9
             group.scale = SCNVector3(s, s, s)
-            group.opacity = CGFloat(0.3 + backProg * 0.7)
-            applyTiltToWrappers(group, closedAngle: -5, openAngle: -55, progress: Float(backProg))
+            group.opacity = CGFloat(0.6 + backProg * 0.4)
+            let openAngle: Float = -55 - extraOpen * 12
+            applyPetalSway(group, closedAngle: -5, openAngle: openAngle, progress: backProg, dancePhase: dancePhase, danceAmount: danceAmount)
         }
 
         // Front outer petals
         if let group = flowerRoot.childNode(withName: "frontOuterGroup", recursively: false) {
-            let s = Float(0.1 + frontProg * 0.9)
+            let s: Float = 0.1 + frontProg * 0.9
             group.scale = SCNVector3(s, s, s)
-            group.opacity = CGFloat(0.3 + frontProg * 0.7)
-            applyTiltToWrappers(group, closedAngle: -5, openAngle: -35, progress: Float(frontProg))
+            group.opacity = CGFloat(0.6 + frontProg * 0.4)
+            let openAngle: Float = -35 - extraOpen * 15
+            applyPetalSway(group, closedAngle: -5, openAngle: openAngle, progress: frontProg, dancePhase: dancePhase, danceAmount: danceAmount)
         }
 
         // Inner petals
         if let group = flowerRoot.childNode(withName: "innerGroup", recursively: false) {
-            let s = Float(0.1 + innerProg * 0.9)
+            let s: Float = 0.1 + innerProg * 0.9
             group.scale = SCNVector3(s, s, s)
-            group.opacity = CGFloat(0.3 + innerProg * 0.7)
-            applyTiltToWrappers(group, closedAngle: -5, openAngle: -20, progress: Float(innerProg))
+            group.opacity = CGFloat(0.6 + innerProg * 0.4)
+            let openAngle: Float = -20 - extraOpen * 10
+            applyPetalSway(group, closedAngle: -5, openAngle: openAngle, progress: innerProg, dancePhase: dancePhase, danceAmount: danceAmount)
         }
 
         // Stamen
         if let group = flowerRoot.childNode(withName: "stamenGroup", recursively: false) {
-            let s = Float(0.1 + stamenProg * 0.9)
+            let s: Float = 0.1 + stamenProg * 0.9
             group.scale = SCNVector3(s, s, s)
-            group.opacity = CGFloat(0.3 + stamenProg * 0.7)
-            applyTiltToWrappers(group, closedAngle: -5, openAngle: -20, progress: Float(stamenProg))
+            group.opacity = CGFloat(0.6 + stamenProg * 0.4)
+            let emergeFactor = min(max((p - 0.7) / 0.3, 0), 1)
+            let openAngle: Float = -20 - extraOpen * 8
+            applyStamenDance(group, closedAngle: -5, openAngle: openAngle, progress: stamenProg, emergeFactor: emergeFactor, dancePhase: dancePhase, danceAmount: danceAmount)
         }
 
-        // Center
+        // Center pulse
         if let center = flowerRoot.childNode(withName: "centerNode", recursively: false) {
-            let cs = Float(0.2 + centerProg * 0.8)
-            center.scale = SCNVector3(cs, cs * 0.5, cs)
-            center.opacity = CGFloat(0.3 + centerProg * 0.7)
+            let cs: Float = 0.2 + centerProg * 0.8
+            let centerPulse: Float = 1.0 + sin(dancePhase * 0.5) * 0.015
+            center.scale = SCNVector3(cs * centerPulse, cs * 0.5 * centerPulse, cs * centerPulse)
+            center.opacity = CGFloat(0.5 + centerProg * 0.5)
         }
 
-        // Bloom glow light
+        // Bloom glow pulsing
         if let glow = flowerRoot.childNode(withName: "bloomGlow", recursively: false) {
-            glow.light?.intensity = CGFloat(p * 600)
+            let baseIntensity = CGFloat(p) * 600
+            let pulse = CGFloat(sin(dancePhase * 0.8)) * 100 * CGFloat(danceAmount)
+            glow.light?.intensity = baseIntensity + pulse
+            glow.light?.attenuationEndDistance = CGFloat(3.0 + danceAmount * 1.5)
+            let colorShift = sin(dancePhase * 0.3) * 0.05
+            glow.light?.color = UIColor(
+                red: 1.0,
+                green: CGFloat(0.85 + colorShift),
+                blue: CGFloat(0.45 - colorShift),
+                alpha: 1.0
+            )
+        }
+
+        // Sparkle animation (visible in last 25% of bloom)
+        if let sparkleGroup = flowerRoot.childNode(withName: "sparkleGroup", recursively: false) {
+            for child in sparkleGroup.childNodes {
+                guard let name = child.name, name.hasPrefix("sparkle_") else { continue }
+                let parts = name.split(separator: "_")
+                guard parts.count >= 4,
+                      let idx = Int(parts[1]),
+                      let baseTheta = Float(parts[2]),
+                      let baseR = Float(parts[3]) else { continue }
+
+                let dp = dancePhase
+                let da = danceAmount
+
+                let twinkle = sin(dp * 1.5 + Float(idx) * 2.399963)
+                let visible = da > 0 && twinkle > 0
+                child.opacity = visible ? CGFloat(da * 0.9) : 0
+
+                let radialDrift = sin(dp * 0.7 + Float(idx) * 1.3) * 0.06
+                let yDrift = sin(dp * 0.5 + Float(idx) * 0.9) * 0.05
+                let r = baseR + radialDrift
+                child.position = SCNVector3(
+                    r * cos(baseTheta),
+                    yDrift,
+                    r * sin(baseTheta)
+                )
+
+                let scaleTwinkle: Float = 0.8 + sin(dp * 2.0 + Float(idx)) * 0.4
+                child.scale = SCNVector3(scaleTwinkle, scaleTwinkle, scaleTwinkle)
+            }
         }
     }
 
-    private static func layerProgress(_ holdProgress: CGFloat, activationStart: CGFloat, fullAt: CGFloat) -> CGFloat {
+    private static func layerProgress(_ holdProgress: Float, activationStart: Float, fullAt: Float) -> Float {
         guard holdProgress > activationStart else { return 0 }
         let range = fullAt - activationStart
         guard range > 0 else { return 1 }
         return min((holdProgress - activationStart) / range, 1.0)
     }
 
-    private static func applyTiltToWrappers(_ group: SCNNode, closedAngle: Float, openAngle: Float, progress: Float) {
+    private static func applyPetalSway(_ group: SCNNode, closedAngle: Float, openAngle: Float, progress: Float, dancePhase: Float, danceAmount: Float) {
         let closedRad = closedAngle * Float.pi / 180
         let openRad = openAngle * Float.pi / 180
         let currentTilt = closedRad + (openRad - closedRad) * progress
+        let dp = dancePhase
 
-        for wrapper in group.childNodes {
-            // Each wrapper has a child petal node whose x euler controls tilt
+        for (i, wrapper) in group.childNodes.enumerated() {
+            // Recover base Y angle from wrapper name
+            var baseY: Float = 0
+            if let name = wrapper.name, name.hasPrefix("pw_"),
+               let val = Float(name.dropFirst(3)) {
+                baseY = val
+            }
+
+            // Y-axis sway (3-frequency sine)
+            let seed = Float(i) * 2.4
+            let w1 = sin(dp * 0.8 + seed) * 2.0
+            let w2 = sin(dp * 1.3 + seed * 0.4) * 1.2
+            let w3 = sin(dp * 0.5 + seed * 1.7) * 0.6
+            let swayDegrees = (w1 + w2 + w3) * (1.0 + danceAmount * 2.0)
+            let swayRad = swayDegrees * Float.pi / 180
+            wrapper.eulerAngles.y = baseY + swayRad
+
             if let petalNode = wrapper.childNodes.first {
                 petalNode.eulerAngles.x = currentTilt
+
+                // Radial pulse (+-2% scale)
+                let radPulse = sin(dp * 0.6 + seed * 0.7) * 0.02
+                let s: Float = 1.0 + radPulse
+                petalNode.scale = SCNVector3(s, s, s)
+            }
+        }
+    }
+
+    private static func applyStamenDance(_ group: SCNNode, closedAngle: Float, openAngle: Float, progress: Float, emergeFactor: Float, dancePhase: Float, danceAmount: Float) {
+        let closedRad = closedAngle * Float.pi / 180
+        let openRad = openAngle * Float.pi / 180
+        let currentTilt = closedRad + (openRad - closedRad) * progress
+        let dp = dancePhase
+
+        for (i, wrapper) in group.childNodes.enumerated() {
+            // Recover base Y angle from wrapper name
+            var baseY: Float = 0
+            if let name = wrapper.name, name.hasPrefix("sw_"),
+               let val = Float(name.dropFirst(3)) {
+                baseY = val
+            }
+
+            // Y sway (2-frequency, different seeds than petals)
+            let seed = Float(i) * 3.1
+            let w1 = sin(dp * 0.9 + seed) * 2.5
+            let w2 = sin(dp * 1.4 + seed * 0.6) * 1.5
+            let swayDegrees = (w1 + w2) * (1.0 + danceAmount * 2.0)
+            let swayRad = swayDegrees * Float.pi / 180
+            wrapper.eulerAngles.y = baseY + swayRad
+
+            if let stamenUnit = wrapper.childNodes.first {
+                let extraTilt = -8.0 * Float.pi / 180 * emergeFactor
+                let tiltOscillation = sin(dp * 1.1 + seed) * 3.0 * Float.pi / 180 * danceAmount
+                stamenUnit.eulerAngles.x = currentTilt + extraTilt + tiltOscillation
+
+                let s: Float = 1.0 + emergeFactor * 0.15
+                stamenUnit.scale = SCNVector3(s, s, s)
             }
         }
     }
@@ -194,7 +334,8 @@ enum Flower3DSceneBuilder {
         innerDesign: InnerPetalDesign,
         outerColor: Color,
         innerColor: Color,
-        geometry: FlowerGeometry
+        geometry: FlowerGeometry,
+        useToonShader: Bool
     ) {
         let outerParams = outerDesign.meshParams
         let innerParams = innerDesign.meshParams
@@ -212,7 +353,8 @@ enum Flower3DSceneBuilder {
                     width: Float(geometry.petalWidth),
                     tiltAngle: -55 * Float.pi / 180,
                     yRotation: angle,
-                    scale: 1.0
+                    scale: 1.0,
+                    useToonShader: useToonShader
                 )
                 backOuterGroup.addChildNode(petal)
             }
@@ -231,7 +373,8 @@ enum Flower3DSceneBuilder {
                     width: Float(geometry.petalWidth),
                     tiltAngle: -35 * Float.pi / 180,
                     yRotation: angle,
-                    scale: 1.0
+                    scale: 1.0,
+                    useToonShader: useToonShader
                 )
                 frontOuterGroup.addChildNode(petal)
             }
@@ -251,7 +394,8 @@ enum Flower3DSceneBuilder {
                     width: Float(geometry.innerWidth),
                     tiltAngle: -20 * Float.pi / 180,
                     yRotation: angle,
-                    scale: 0.7
+                    scale: 0.7,
+                    useToonShader: useToonShader
                 )
                 innerGroup.addChildNode(petal)
             }
@@ -265,15 +409,17 @@ enum Flower3DSceneBuilder {
         width: Float,
         tiltAngle: Float,
         yRotation: Float,
-        scale: Float
+        scale: Float,
+        useToonShader: Bool
     ) -> SCNNode {
         let petalGeometry = buildPetalGeometry(params: params, width: width, scale: scale)
-        petalGeometry.materials = [clayMaterial(color: color)]
+        petalGeometry.materials = [petalMaterial(color: color, toon: useToonShader)]
 
         let petalNode = SCNNode(geometry: petalGeometry)
         petalNode.eulerAngles.x = tiltAngle
 
         let wrapper = SCNNode()
+        wrapper.name = "pw_\(yRotation)"
         wrapper.eulerAngles.y = yRotation
         wrapper.addChildNode(petalNode)
         return wrapper
@@ -368,6 +514,10 @@ enum Flower3DSceneBuilder {
 
     // MARK: - Materials
 
+    private static func petalMaterial(color: Color, toon: Bool) -> SCNMaterial {
+        toon ? toonMaterial(color: color) : clayMaterial(color: color)
+    }
+
     private static func clayMaterial(color: Color) -> SCNMaterial {
         let material = SCNMaterial()
         material.lightingModel = .physicallyBased
@@ -378,31 +528,73 @@ enum Flower3DSceneBuilder {
         return material
     }
 
+    private static func toonMaterial(color: Color) -> SCNMaterial {
+        let material = SCNMaterial()
+        material.lightingModel = .lambert
+        material.diffuse.contents = UIColor(color)
+        material.isDoubleSided = true
+        material.shaderModifiers = [.fragment: toonFragmentShader]
+        return material
+    }
+
+    /// Cel-shaded fragment modifier: quantizes the lit color into 4 distinct
+    /// brightness bands while preserving hue. Runs after standard Lambert
+    /// lighting so it cleanly captures ambient + directional + bloom-glow
+    /// contributions, then snaps the result into stepped tones.
+    private static let toonFragmentShader: String = """
+    #pragma transparent
+    #pragma body
+    {
+        vec3 c = _output.color.rgb;
+        float v = max(c.r, max(c.g, c.b));
+        float band;
+        if (v > 0.78) {
+            band = 1.0;
+        } else if (v > 0.52) {
+            band = 0.72;
+        } else if (v > 0.27) {
+            band = 0.44;
+        } else {
+            band = 0.24;
+        }
+        vec3 hue = c / max(v, 0.0001);
+        _output.color.rgb = clamp(hue * band, 0.0, 1.0);
+    }
+    """
+
     // MARK: - Stamen
 
     private static func addStamen(
         to parent: SCNNode,
         design: StamenDesign,
         color: Color,
-        geometry: FlowerGeometry
+        geometry: FlowerGeometry,
+        useToonShader: Bool
     ) {
         let stamenGroup = SCNNode()
         stamenGroup.name = "stamenGroup"
 
         let config = design.stamenConfig
-        let baseRadius = Float(geometry.stamenScale) * 0.5
-        let material = clayMaterial(color: color)
+        let baseRadius = Float(geometry.stamenScale) * 1.5 * config.lengthMultiplier
+        let material = petalMaterial(color: color, toon: useToonShader)
 
         for i in 0..<config.count {
-            let angle = Float(i) / Float(config.count) * 2 * Float.pi
+            // Per-filament deterministic variation (stable across rebuilds)
+            let angleJitter = (hashRand(i, 1) - 0.5) * 2 * config.angularJitter
+            let lengthFactor = 1.0 + (hashRand(i, 2) - 0.5) * 2 * config.lengthVariance
+            let leanX = (hashRand(i, 3) - 0.5) * 2 * config.leanVariance
+            let leanZ = (hashRand(i, 4) - 0.5) * 2 * config.leanVariance
+
+            let angle = Float(i) / Float(config.count) * 2 * Float.pi + angleJitter
+            let perRadius = baseRadius * lengthFactor
 
             // Filament
-            let filament = SCNCylinder(radius: CGFloat(config.filamentRadius), height: CGFloat(baseRadius))
+            let filament = SCNCylinder(radius: CGFloat(config.filamentRadius), height: CGFloat(perRadius))
             filament.radialSegmentCount = 6
             filament.materials = [material]
 
             let filamentNode = SCNNode(geometry: filament)
-            filamentNode.position = SCNVector3(0, Float(baseRadius) / 2, 0)
+            filamentNode.position = SCNVector3(0, perRadius / 2, 0)
 
             // Anther tip
             let anther = SCNSphere(radius: CGFloat(config.tipRadius))
@@ -410,14 +602,22 @@ enum Flower3DSceneBuilder {
             anther.materials = [material]
 
             let antherNode = SCNNode(geometry: anther)
-            antherNode.position = SCNVector3(0, Float(baseRadius), 0)
+            antherNode.position = SCNVector3(0, perRadius, 0)
+
+            // Lean group — organic per-filament tilt that survives bloom dance
+            let leanGroup = SCNNode()
+            if config.leanVariance > 0 {
+                leanGroup.eulerAngles = SCNVector3(leanX, 0, leanZ)
+            }
+            leanGroup.addChildNode(filamentNode)
+            leanGroup.addChildNode(antherNode)
 
             let stamenUnit = SCNNode()
-            stamenUnit.addChildNode(filamentNode)
-            stamenUnit.addChildNode(antherNode)
+            stamenUnit.addChildNode(leanGroup)
             stamenUnit.eulerAngles.x = -20 * Float.pi / 180
 
             let wrapper = SCNNode()
+            wrapper.name = "sw_\(angle)"
             wrapper.eulerAngles.y = angle
             wrapper.addChildNode(stamenUnit)
             stamenGroup.addChildNode(wrapper)
@@ -426,18 +626,27 @@ enum Flower3DSceneBuilder {
         parent.addChildNode(stamenGroup)
     }
 
+    /// Deterministic pseudo-random in 0..1 — stable per (index, seed).
+    /// Used so per-filament variation stays constant across rebuilds.
+    private static func hashRand(_ i: Int, _ seed: Int) -> Float {
+        let v = Float(i) * 12.9898 + Float(seed) * 78.233
+        let s = sin(v) * 43758.5453
+        return s - floor(s)
+    }
+
     // MARK: - Center
 
     private static func addCenter(
         to parent: SCNNode,
         design: CenterDesign,
         color: Color,
-        geometry: FlowerGeometry
+        geometry: FlowerGeometry,
+        useToonShader: Bool
     ) {
         let radius = Float(geometry.centerScale) * 0.6
         let sphere = SCNSphere(radius: CGFloat(radius))
         sphere.segmentCount = 24
-        sphere.materials = [clayMaterial(color: color)]
+        sphere.materials = [petalMaterial(color: color, toon: useToonShader)]
 
         let centerNode = SCNNode(geometry: sphere)
         centerNode.name = "centerNode"
@@ -497,18 +706,22 @@ fileprivate struct StamenConfig {
     let count: Int
     let filamentRadius: Float
     let tipRadius: Float
+    let lengthMultiplier: Float   // 1.0 = normal; >1 reaches further out of the flower
+    let lengthVariance: Float     // 0 = uniform; 0.2 = +-20% per filament
+    let leanVariance: Float       // radians of random tilt per filament (organic look)
+    let angularJitter: Float      // radians of random Y rotation jitter (uneven spacing)
 }
 
 extension StamenDesign {
     fileprivate var stamenConfig: StamenConfig {
         switch self {
-        case .dewdrops:    StamenConfig(count: 8,  filamentRadius: 0.008, tipRadius: 0.018)
-        case .fairyDust:   StamenConfig(count: 12, filamentRadius: 0.005, tipRadius: 0.012)
-        case .sunburst:    StamenConfig(count: 16, filamentRadius: 0.008, tipRadius: 0.015)
-        case .tendrils:    StamenConfig(count: 6,  filamentRadius: 0.010, tipRadius: 0.014)
-        case .pollenCloud: StamenConfig(count: 10, filamentRadius: 0.006, tipRadius: 0.020)
-        case .crown:       StamenConfig(count: 8,  filamentRadius: 0.012, tipRadius: 0.022)
-        case .corona:      StamenConfig(count: 5,  filamentRadius: 0.010, tipRadius: 0.025)
+        case .dewdrops:    StamenConfig(count: 8,  filamentRadius: 0.012, tipRadius: 0.035, lengthMultiplier: 1.0, lengthVariance: 0,    leanVariance: 0,    angularJitter: 0)
+        case .fairyDust:   StamenConfig(count: 12, filamentRadius: 0.006, tipRadius: 0.026, lengthMultiplier: 2.2, lengthVariance: 0.22, leanVariance: 0.22, angularJitter: 0.18)
+        case .sunburst:    StamenConfig(count: 16, filamentRadius: 0.012, tipRadius: 0.025, lengthMultiplier: 1.0, lengthVariance: 0,    leanVariance: 0,    angularJitter: 0)
+        case .tendrils:    StamenConfig(count: 6,  filamentRadius: 0.016, tipRadius: 0.022, lengthMultiplier: 1.0, lengthVariance: 0,    leanVariance: 0,    angularJitter: 0)
+        case .pollenCloud: StamenConfig(count: 10, filamentRadius: 0.010, tipRadius: 0.040, lengthMultiplier: 1.0, lengthVariance: 0,    leanVariance: 0,    angularJitter: 0)
+        case .crown:       StamenConfig(count: 8,  filamentRadius: 0.018, tipRadius: 0.035, lengthMultiplier: 1.0, lengthVariance: 0,    leanVariance: 0,    angularJitter: 0)
+        case .corona:      StamenConfig(count: 5,  filamentRadius: 0.015, tipRadius: 0.042, lengthMultiplier: 1.0, lengthVariance: 0,    leanVariance: 0,    angularJitter: 0)
         }
     }
 }

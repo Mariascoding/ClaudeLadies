@@ -126,6 +126,7 @@ final class LogViewModel {
             todayEntry = entry
         }
         try? modelContext.save()
+        Shinedust.awardOncePerDay(.dayLog, in: modelContext)
     }
 
     private func fetchTodayEntry() -> SymptomEntry? {

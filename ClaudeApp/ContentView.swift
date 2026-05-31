@@ -19,12 +19,8 @@ struct ContentView: View {
                 InsightsView()
             }
 
-            Tab("Lab", systemImage: "flask.fill") {
+            Tab("More", systemImage: "ellipsis.circle.fill") {
                 LabView()
-            }
-
-            Tab("Settings", systemImage: "gearshape") {
-                SettingsView()
             }
         }
         .tint(.appRose)

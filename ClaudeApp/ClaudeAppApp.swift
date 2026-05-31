@@ -15,7 +15,7 @@ struct ClaudeAppApp: App {
                 .dynamicTypeSize(ThemeOverrides.shared.activeTheme?.typeSize ?? .medium)
                 .task { await authService.initialize() }
         }
-        .modelContainer(for: [CycleLog.self, SymptomEntry.self, UserProfile.self, NutritionLog.self, HealthMetricLog.self, SavedFlowerDesign.self, FlowerStateEntry.self])
+        .modelContainer(for: [CycleLog.self, SymptomEntry.self, UserProfile.self, NutritionLog.self, HealthMetricLog.self, SavedFlowerDesign.self, FlowerStateEntry.self, ShinedustEvent.self, PersonalItem.self, DismissedProtocolItem.self, AutoFlowerProfile.self])
     }
 }
 

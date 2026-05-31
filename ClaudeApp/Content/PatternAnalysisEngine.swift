@@ -530,6 +530,11 @@ enum PatternAnalysisEngine {
                 return "Hair Health can support follicle and hormonal balance based on your symptom patterns."
             }
             return "Your \(clusterNames.joined(separator: " and ")) symptoms suggest Hair Health could help nourish your follicles and rebuild density."
+        case .gutHeal:
+            if clusterNames.isEmpty {
+                return "Gut Heal can support digestive repair and reduce inflammation based on your symptom patterns."
+            }
+            return "Your \(clusterNames.joined(separator: " and ")) symptoms suggest Gut Heal could help restore your gut lining and calm inflammation."
         }
     }
 

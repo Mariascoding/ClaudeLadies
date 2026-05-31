@@ -22,9 +22,18 @@ struct SettingsView: View {
                 VStack(spacing: AppTheme.Spacing.md) {
                     // Cycle settings
                     if let profile {
-                        cycleLengthCard(profile)
+                        if profile.wellnessGoal == .prenatal {
+                            pregnancyDateCard(profile)
+                        } else if profile.wellnessGoal == .menopause {
+                            menopauseDateCard(profile)
+                        } else {
+                            cycleLengthCard(profile)
+                        }
                         wellnessGoalCard(profile)
-                        nutritionProtocolCard(profile)
+                        dietaryPreferenceCard(profile)
+                        if profile.wellnessGoal != .prenatal && profile.wellnessGoal != .menopause {
+                            nutritionProtocolCard(profile)
+                        }
                     }
 
                     // Theme
@@ -56,6 +65,86 @@ struct SettingsView: View {
         }
     }
 
+    private func pregnancyDateCard(_ profile: UserProfile) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            Text("Pregnancy")
+                .sectionLabel(color: Color.appRose)
+
+            DatePicker(
+                "Pregnancy started",
+                selection: Binding(
+                    get: { profile.pregnancyStartDate ?? Date() },
+                    set: {
+                        profile.pregnancyStartDate = $0
+                        try? modelContext.save()
+                    }
+                ),
+                in: ...Date(),
+                displayedComponents: .date
+            )
+            .font(.system(.body, design: AppTheme.fontFamily))
+            .tint(Color.appRose)
+
+            if let start = profile.pregnancyStartDate {
+                let pos = PregnancyCalculator.currentPosition(pregnancyStart: start)
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    Text("Week \(pos.week)")
+                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                        .foregroundStyle(Color.appRose)
+                    Text("·")
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.3))
+                    Text("Due \(pos.dueDate, format: .dateTime.day().month(.abbreviated).year())")
+                        .captionStyle()
+                }
+            }
+
+            Text("Set the date your pregnancy began or your last menstrual period. This replaces cycle tracking while in prenatal mode.")
+                .captionStyle()
+        }
+        .warmCard()
+        .padding(.horizontal, AppTheme.Spacing.md)
+    }
+
+    private func menopauseDateCard(_ profile: UserProfile) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            Text("Menopause")
+                .sectionLabel(color: Color.appTerracotta)
+
+            DatePicker(
+                "Last bleed started",
+                selection: Binding(
+                    get: { profile.menopauseLastBleedDate ?? Date() },
+                    set: {
+                        profile.menopauseLastBleedDate = $0
+                        try? modelContext.save()
+                    }
+                ),
+                in: ...Date(),
+                displayedComponents: .date
+            )
+            .font(.system(.body, design: AppTheme.fontFamily))
+            .tint(Color.appTerracotta)
+
+            if let lastBleed = profile.menopauseLastBleedDate {
+                let pos = MenopauseCalculator.currentPosition(lastBleedDate: lastBleed)
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    Text(pos.phase.displayName)
+                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                        .foregroundStyle(Color.appTerracotta)
+                    Text("·")
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.3))
+                    Text("\(pos.daysSinceLastBleed) days since last bleed")
+                        .captionStyle()
+                }
+            }
+
+            Text("Your body still follows a hormonal rhythm. We use your last bleed date to align nutrition with your natural cycle — supporting the hormones your body needs most.")
+                .captionStyle()
+        }
+        .warmCard()
+        .padding(.horizontal, AppTheme.Spacing.md)
+    }
+
     private func cycleLengthCard(_ profile: UserProfile) -> some View {
         VStack(spacing: AppTheme.Spacing.md) {
             CycleLengthSettingView(
@@ -75,12 +164,8 @@ struct SettingsView: View {
 
     private func wellnessGoalCard(_ profile: UserProfile) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            HStack(spacing: AppTheme.Spacing.sm) {
-                Image(systemName: "heart.circle.fill")
-                    .foregroundStyle(Color.appRose)
-                Text("Wellness Goal")
-                    .warmHeadline()
-            }
+            Text("Life Stage")
+                .sectionLabel(color: Color.appRose)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: AppTheme.Spacing.sm) {
                 ForEach(WellnessGoal.allCases) { goal in
@@ -113,14 +198,49 @@ struct SettingsView: View {
         .padding(.horizontal, AppTheme.Spacing.md)
     }
 
+    private func dietaryPreferenceCard(_ profile: UserProfile) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            Text("Dietary Preference")
+                .sectionLabel(color: profile.dietaryPreference.color)
+
+            HStack(spacing: AppTheme.Spacing.sm) {
+                ForEach(DietaryPreference.allCases) { pref in
+                    let isSelected = profile.dietaryPreference == pref
+                    Button {
+                        withAnimation(AppTheme.gentleAnimation) {
+                            profile.dietaryPreference = pref
+                            try? modelContext.save()
+                        }
+                    } label: {
+                        VStack(spacing: AppTheme.Spacing.xs) {
+                            Image(systemName: pref.icon)
+                                .font(.body)
+                                .foregroundStyle(isSelected ? .white : pref.color)
+                            Text(pref.displayName)
+                                .font(.system(.caption2, design: AppTheme.fontFamily, weight: .medium))
+                                .foregroundStyle(isSelected ? .white : Color.appSoftBrown)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppTheme.Spacing.sm)
+                        .background(isSelected ? pref.color : pref.color.opacity(0.08))
+                        .clipShape(SoftRoundedRectangle(radius: AppTheme.Radius.sm))
+                    }
+                }
+            }
+
+            Text("Food suggestions adapt automatically to your preference.")
+                .captionStyle()
+        }
+        .warmCard()
+        .padding(.horizontal, AppTheme.Spacing.md)
+    }
+
     private func nutritionProtocolCard(_ profile: UserProfile) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            HStack(spacing: AppTheme.Spacing.sm) {
-                Image(systemName: "leaf.fill")
-                    .foregroundStyle(Color.appSage)
-                Text("Nutrition Protocol")
-                    .warmHeadline()
-            }
+            Text("Protocol")
+                .sectionLabel(color: Color.appSage)
 
             HStack(spacing: AppTheme.Spacing.sm) {
                 ForEach(NutritionProtocol.allCases) { nutritionProtocol in
@@ -162,12 +282,8 @@ struct SettingsView: View {
 
     private var themeCard: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            HStack(spacing: AppTheme.Spacing.sm) {
-                Image(systemName: "paintpalette.fill")
-                    .foregroundStyle(Color.appRose)
-                Text("Color Theme")
-                    .warmHeadline()
-            }
+            Text("Color Theme")
+                .sectionLabel(color: Color.appRose)
 
             HStack(spacing: 0) {
                 // Auto option
@@ -237,10 +353,8 @@ struct SettingsView: View {
     private var backupCard: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             HStack(spacing: AppTheme.Spacing.sm) {
-                Image(systemName: isSignedIn ? "checkmark.icloud.fill" : "icloud.fill")
-                    .foregroundStyle(isSignedIn ? Color.appSage : Color.appSoftBrown.opacity(0.4))
                 Text("Cloud Backup")
-                    .warmHeadline()
+                    .sectionLabel(color: isSignedIn ? Color.appSage : Color.appSoftBrown.opacity(0.4))
             }
 
             if isSignedIn {
@@ -282,10 +396,8 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             Toggle(isOn: $devConsoleEnabled) {
                 HStack(spacing: AppTheme.Spacing.sm) {
-                    Image(systemName: "wrench.and.screwdriver.fill")
-                        .foregroundStyle(Color.appTerracotta)
                     Text("Developer Console")
-                        .warmHeadline()
+                        .sectionLabel(color: Color.appTerracotta)
                 }
             }
             .tint(Color.appTerracotta)
@@ -301,10 +413,8 @@ struct SettingsView: View {
     private var aboutCard: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             HStack(spacing: AppTheme.Spacing.sm) {
-                Image(systemName: "heart.fill")
-                    .foregroundStyle(Color.appRose)
                 Text("About")
-                    .warmHeadline()
+                    .sectionLabel(color: Color.appRose)
             }
 
             Text("This app is your daily companion for understanding your cycle and nurturing your wellbeing. All data stays on your device.")

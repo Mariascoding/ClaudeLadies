@@ -28,14 +28,15 @@ struct SpectrumColorPickerView: View {
 
 struct SpectrumColorPicker: View {
     @Binding var selection: Color
-    var onCancel: () -> Void
-    var onConfirm: () -> Void
+    var onCancel: (() -> Void)? = nil
+    var onConfirm: (() -> Void)? = nil
 
     @State private var hue: CGFloat = 0.0
     @State private var saturation: CGFloat = 1.0
     @State private var brightness: CGFloat = 1.0
     @State private var savedColors: [SavedColor] = []
     @State private var didInit = false
+    @State private var plusBloop = false
 
     private static let presets: [Color] = [
         .red, .orange, .yellow, .green, .mint,
@@ -55,36 +56,38 @@ struct SpectrumColorPicker: View {
             paletteRow
 
             // Cancel / Confirm
-            HStack(spacing: 8) {
-                Button {
-                    onCancel()
-                } label: {
-                    Text("Cancel")
-                        .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
-                        .foregroundStyle(Color.appSoftBrown)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .strokeBorder(Color.appSoftBrown.opacity(0.3), lineWidth: 1)
-                        )
-                }
+            if onCancel != nil || onConfirm != nil {
+                HStack(spacing: 8) {
+                    Button {
+                        onCancel?()
+                    } label: {
+                        Text("Cancel")
+                            .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
+                            .foregroundStyle(Color.appSoftBrown)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule()
+                                    .strokeBorder(Color.appSoftBrown.opacity(0.3), lineWidth: 1)
+                            )
+                    }
 
-                Button {
-                    onConfirm()
-                } label: {
-                    Text("Confirm")
-                        .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 5)
-                        .background(Color.appRose)
-                        .clipShape(Capsule())
+                    Button {
+                        onConfirm?()
+                    } label: {
+                        Text("Confirm")
+                            .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 5)
+                            .background(Color.appRose)
+                            .clipShape(Capsule())
+                    }
                 }
+                .frame(height: 26)
             }
-            .frame(height: 26)
         }
-        .frame(height: 188)
+        .frame(height: onCancel != nil || onConfirm != nil ? 188 : 158)
         .onAppear {
             guard !didInit else { return }
             didInit = true
@@ -177,53 +180,50 @@ struct SpectrumColorPicker: View {
     // MARK: - Palette
 
     private var paletteRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                // Add current colour button
-                Button {
-                    let newColor = SavedColor(hex: currentHex())
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        savedColors.append(newColor)
+        HStack(spacing: 6) {
+            // Sticky + button
+            Button {
+                let newColor = SavedColor(hex: currentHex())
+                // Bloop out
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                    plusBloop = true
+                }
+                // Insert after a tiny delay so the bloop leads
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        savedColors.insert(newColor, at: 0)
                         SavedColor.save(savedColors)
                     }
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color(hue: hue, saturation: saturation, brightness: brightness))
-                            .overlay(Circle().strokeBorder(Color.appSoftBrown.opacity(0.2), lineWidth: 0.5))
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.3), radius: 1)
+                }
+                // Reset bloop
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        plusBloop = false
                     }
-                    .frame(width: 44, height: 44)
                 }
-
-                // Divider
-                RoundedRectangle(cornerRadius: 0.5)
-                    .fill(Color.appSoftBrown.opacity(0.15))
-                    .frame(width: 1, height: 30)
-
-                // Preset colours
-                ForEach(Self.presets, id: \.description) { color in
+            } label: {
+                ZStack {
                     Circle()
-                        .fill(color)
-                        .frame(width: 34, height: 34)
-                        .overlay(Circle().strokeBorder(Color.appSoftBrown.opacity(0.15), lineWidth: 0.5))
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
-                        .onTapGesture {
-                            loadHSB(from: color)
-                            updateSelection()
-                        }
+                        .fill(Color(hue: hue, saturation: saturation, brightness: brightness))
+                        .overlay(Circle().strokeBorder(Color.appSoftBrown.opacity(0.2), lineWidth: 0.5))
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.3), radius: 1)
                 }
+                .frame(width: 44, height: 44)
+                .scaleEffect(plusBloop ? 1.3 : 1.0)
+            }
 
-                // Saved colours
-                if !savedColors.isEmpty {
-                    RoundedRectangle(cornerRadius: 0.5)
-                        .fill(Color.appSoftBrown.opacity(0.15))
-                        .frame(width: 1, height: 30)
+            // Divider
+            RoundedRectangle(cornerRadius: 0.5)
+                .fill(Color.appSoftBrown.opacity(0.15))
+                .frame(width: 1, height: 30)
 
+            // Scrollable palette
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    // Saved colours (newest first)
                     ForEach(savedColors) { saved in
                         Circle()
                             .fill(saved.color)
@@ -231,6 +231,7 @@ struct SpectrumColorPicker: View {
                             .overlay(Circle().strokeBorder(.white, lineWidth: 1.5))
                             .frame(width: 44, height: 44)
                             .contentShape(Circle())
+                            .transition(.scale.combined(with: .opacity))
                             .onTapGesture {
                                 loadHSB(from: saved.color)
                                 updateSelection()
@@ -240,6 +241,20 @@ struct SpectrumColorPicker: View {
                                     savedColors.removeAll { $0.id == saved.id }
                                     SavedColor.save(savedColors)
                                 }
+                            }
+                    }
+
+                    // Preset colours
+                    ForEach(Self.presets, id: \.description) { color in
+                        Circle()
+                            .fill(color)
+                            .frame(width: 34, height: 34)
+                            .overlay(Circle().strokeBorder(Color.appSoftBrown.opacity(0.15), lineWidth: 0.5))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
+                            .onTapGesture {
+                                loadHSB(from: color)
+                                updateSelection()
                             }
                     }
                 }

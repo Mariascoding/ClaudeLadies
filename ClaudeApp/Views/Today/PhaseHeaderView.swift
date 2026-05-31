@@ -7,31 +7,31 @@ struct PhaseHeaderView: View {
     var cycleLength: Int = 28
 
     var body: some View {
-        VStack(spacing: AppTheme.Spacing.sm) {
+        VStack(spacing: AppTheme.Spacing.xs) {
+            // Greeting — soft, small
             Text(greeting)
-                .font(.system(.title3, design: AppTheme.fontFamily))
-                .foregroundStyle(Color.appSoftBrown.opacity(0.7))
+                .font(.system(.subheadline, design: .serif))
+                .foregroundStyle(Color.appSoftBrown.opacity(0.55))
+                .padding(.bottom, 2)
 
-            HStack(spacing: AppTheme.Spacing.sm) {
-                PhaseIcon(phase: phase, size: 32)
-                Text(phase.innerSeason)
-                    .font(.system(.largeTitle, design: AppTheme.fontFamily, weight: .bold))
-                    .foregroundStyle(Color.appSoftBrown)
-            }
+            // Inner Season — the hero statement
+            Text(phase.innerSeason)
+                .font(.system(size: 32, weight: .semibold, design: .serif))
+                .foregroundStyle(Color.appSoftBrown)
+                .kerning(0.5)
 
-            // Date
-            VStack(spacing: 2) {
-                Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day())
-                    .font(.system(.subheadline, design: AppTheme.fontFamily))
-                    .foregroundStyle(Color.appSoftBrown.opacity(0.6))
-            }
+            // Phase day — minimal, elegant
+            Text("\(phase.displayName) · Day \(dayInCycle)\(dayInCycle <= cycleLength ? " of \(cycleLength)" : "")")
+                .font(.system(.caption, design: .rounded, weight: .medium))
+                .foregroundStyle(phase.accentColor.opacity(0.8))
+                .padding(.top, 2)
 
-            // Phase and cycle day
-            Text("\(phase.displayName) Phase · Day \(dayInCycle)\(dayInCycle <= cycleLength ? " of \(cycleLength)" : "")")
-                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                .foregroundStyle(phase.accentColor)
+            // Date — understated
+            Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day())
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(Color.appSoftBrown.opacity(0.4))
         }
         .padding(.top, AppTheme.Spacing.xl)
-        .padding(.bottom, AppTheme.Spacing.md)
+        .padding(.bottom, AppTheme.Spacing.sm)
     }
 }

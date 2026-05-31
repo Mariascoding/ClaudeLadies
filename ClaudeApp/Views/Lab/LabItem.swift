@@ -12,6 +12,9 @@ enum LabItem: String, CaseIterable, Identifiable {
     case colorPicker
     case flowerBuilder3D
     case autoFlowerCreator
+    case cycleBloom
+    case dashboard
+    case carousel
 
     var id: String { rawValue }
 
@@ -28,6 +31,9 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .colorPicker: "Color Picker"
         case .flowerBuilder3D: "3D Flower"
         case .autoFlowerCreator: "Auto Flower"
+        case .cycleBloom: "Cycle Bloom"
+        case .dashboard: "Dashboard"
+        case .carousel: "Carousel"
         }
     }
 
@@ -44,6 +50,9 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .colorPicker: "Pick any colour from a full spectrum"
         case .flowerBuilder3D: "Build a clay flower with orbit view"
         case .autoFlowerCreator: "Your moon-born flower portrait"
+        case .cycleBloom: "Your flower blooming through inner seasons"
+        case .dashboard: "All your cycle data at a glance"
+        case .carousel: "Scroll-bar / segmented-control hybrid"
         }
     }
 
@@ -60,6 +69,9 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .colorPicker: "paintpalette.fill"
         case .flowerBuilder3D: "cube.fill"
         case .autoFlowerCreator: "wand.and.stars"
+        case .cycleBloom: "circle.hexagongrid.fill"
+        case .dashboard: "rectangle.grid.2x2.fill"
+        case .carousel: "rectangle.split.3x1.fill"
         }
     }
 
@@ -76,6 +88,9 @@ enum LabItem: String, CaseIterable, Identifiable {
         case .colorPicker: .appTerracotta
         case .flowerBuilder3D: .appRose
         case .autoFlowerCreator: Color(red: 0.69, green: 0.61, blue: 0.82)
+        case .cycleBloom: Color(red: 0.88, green: 0.55, blue: 0.42)
+        case .dashboard: Color(red: 0.50, green: 0.60, blue: 0.75)
+        case .carousel: Color(red: 0.60, green: 0.55, blue: 0.70)
         }
     }
 
@@ -104,6 +119,12 @@ enum LabItem: String, CaseIterable, Identifiable {
             FlowerBuilder3DView()
         case .autoFlowerCreator:
             AutoFlowerCreatorView()
+        case .cycleBloom:
+            CycleBloomView()
+        case .dashboard:
+            DashboardView()
+        case .carousel:
+            CarouselDemoView()
         }
     }
 }

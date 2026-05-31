@@ -13,6 +13,8 @@ struct Flower3DView: View {
     let geometry: FlowerGeometry
     var isBloomMode: Bool = false
     var bloomProgress: CGFloat = 0
+    var bloomTime: CGFloat = 0
+    var useToonShader: Bool = false
 
     @State private var scene: SCNScene?
 
@@ -37,14 +39,20 @@ struct Flower3DView: View {
         .onChange(of: stamenColor.description) { rebuildScene() }
         .onChange(of: centerColor.description) { rebuildScene() }
         .onChange(of: geometry) { rebuildScene() }
+        .onChange(of: useToonShader) { rebuildScene() }
         .onChange(of: isBloomMode) {
             if isBloomMode, let scene {
-                Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress)
+                Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress, time: bloomTime)
             }
         }
         .onChange(of: bloomProgress) {
             if isBloomMode, let scene {
-                Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress)
+                Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress, time: bloomTime)
+            }
+        }
+        .onChange(of: bloomTime) {
+            if isBloomMode, let scene {
+                Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress, time: bloomTime)
             }
         }
     }
@@ -59,10 +67,11 @@ struct Flower3DView: View {
             innerColor: innerColor,
             stamenColor: stamenColor,
             centerColor: centerColor,
-            geometry: geometry
+            geometry: geometry,
+            useToonShader: useToonShader
         )
         if isBloomMode, let scene {
-            Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress)
+            Flower3DSceneBuilder.applyBloom(to: scene, progress: bloomProgress, time: bloomTime)
         }
     }
 }

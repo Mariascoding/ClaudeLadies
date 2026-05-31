@@ -5,6 +5,7 @@ enum NutritionProtocol: String, CaseIterable, Codable, Identifiable {
     case cellDetox
     case daoSt
     case hairHealth
+    case gutHeal
 
     var id: String { rawValue }
 
@@ -14,6 +15,7 @@ enum NutritionProtocol: String, CaseIterable, Codable, Identifiable {
         case .cellDetox: "Cell Detox"
         case .daoSt: "DAO Support"
         case .hairHealth: "Hair Health"
+        case .gutHeal: "Gut Heal"
         }
     }
 
@@ -23,6 +25,7 @@ enum NutritionProtocol: String, CaseIterable, Codable, Identifiable {
         case .cellDetox: "Support your body's natural detoxification pathways through targeted nutrition"
         case .daoSt: "Support DAO enzyme production to improve histamine tolerance"
         case .hairHealth: "Nourish hair follicles and ovarian reserve through shared hormonal pathways"
+        case .gutHeal: "Restore gut lining and digestive fire through warm, simple Ayurvedic and TCM foods"
         }
     }
 
@@ -32,6 +35,7 @@ enum NutritionProtocol: String, CaseIterable, Codable, Identifiable {
         case .cellDetox: "Clear toxins and support liver pathways for hormonal clarity"
         case .daoSt: "Reduce histamine overload and calm inflammatory flare-ups"
         case .hairHealth: "Support follicles, mitochondria, and circulation across every cycle phase"
+        case .gutHeal: "Warm, simple, separated foods to calm inflammation and rebuild the gut lining"
         }
     }
 
@@ -41,6 +45,7 @@ enum NutritionProtocol: String, CaseIterable, Codable, Identifiable {
         case .cellDetox: "sparkles"
         case .daoSt: "shield.lefthalf.filled"
         case .hairHealth: "comb.fill"
+        case .gutHeal: "flame.fill"
         }
     }
 
@@ -50,6 +55,7 @@ enum NutritionProtocol: String, CaseIterable, Codable, Identifiable {
         case .cellDetox: .appTerracotta
         case .daoSt: .appRose
         case .hairHealth: .appSoftBrown
+        case .gutHeal: Color(red: 0.82, green: 0.65, blue: 0.45)
         }
     }
 }

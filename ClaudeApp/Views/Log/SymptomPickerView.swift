@@ -15,8 +15,7 @@ struct SymptomPickerView: View {
     private func categorySection(_ category: SymptomCategory) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
             Text(category.displayName)
-                .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .semibold))
-                .foregroundStyle(Color.appSoftBrown.opacity(0.7))
+                .sectionLabel()
 
             FlowLayout(spacing: AppTheme.Spacing.sm) {
                 ForEach(Symptom.symptoms(for: category)) { symptom in

@@ -7,7 +7,11 @@ struct DailyTimelineView: View {
 
     @State private var showAvoidSection = false
 
-    private var totalItems: Int { plan.totalItemCount }
+    private var mergedPlan: DailyNutritionPlan {
+        viewModel.mergedPlan(plan)
+    }
+
+    private var totalItems: Int { mergedPlan.totalItemCount }
     private var completedItems: Int { viewModel.totalCompletedCount }
     private var progress: Double {
         totalItems > 0 ? Double(completedItems) / Double(totalItems) : 0
@@ -22,7 +26,7 @@ struct DailyTimelineView: View {
             progressCard
 
             // Timeline blocks
-            ForEach(plan.timeBlocks) { block in
+            ForEach(mergedPlan.timeBlocks) { block in
                 TimeBlockCard(
                     timeBlock: block,
                     accentColor: phase.accentColor,
@@ -31,6 +35,11 @@ struct DailyTimelineView: View {
                     onToggle: { item in
                         withAnimation(AppTheme.gentleAnimation) {
                             viewModel.toggleItem(item)
+                        }
+                    },
+                    onDismiss: { item in
+                        withAnimation(AppTheme.gentleAnimation) {
+                            viewModel.dismissProtocolItem(item)
                         }
                     }
                 )
@@ -46,16 +55,30 @@ struct DailyTimelineView: View {
 
     private var focusCard: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-            HStack(spacing: AppTheme.Spacing.sm) {
-                Image(systemName: "sun.max.fill")
-                    .foregroundStyle(phase.accentColor)
-                Text("Today's Focus")
-                    .warmHeadline()
-            }
+            Capsule()
+                .fill(phase.accentColor.opacity(0.4))
+                .frame(width: 32, height: 3)
+
+            Text("Today's Focus")
+                .sectionLabel(color: phase.accentColor)
 
             Text(plan.todayFocus)
-                .guidanceText()
+                .serifBody()
                 .fixedSize(horizontal: false, vertical: true)
+
+            // Late period guidance
+            if let lateNote = viewModel.latePeriodFocusNote {
+                Capsule()
+                    .fill(Color.appRose.opacity(0.3))
+                    .frame(width: 24, height: 2)
+                    .padding(.top, AppTheme.Spacing.xs)
+
+                Text(lateNote)
+                    .font(.system(.body, design: .serif))
+                    .foregroundStyle(Color.appRose.opacity(0.85))
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .warmCard()
@@ -66,14 +89,13 @@ struct DailyTimelineView: View {
     private var progressCard: some View {
         VStack(spacing: AppTheme.Spacing.sm) {
             HStack {
-                Text("Daily Progress")
-                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                    .foregroundStyle(Color.appSoftBrown)
+                Text("Progress")
+                    .sectionLabel()
 
                 Spacer()
 
                 Text("\(completedItems) of \(totalItems)")
-                    .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(phase.accentColor)
             }
 
@@ -104,52 +126,43 @@ struct DailyTimelineView: View {
                 }
             } label: {
                 HStack {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundStyle(phase.accentColor)
-                        .frame(width: 24)
-
-                    Text("Avoid & Why This Works")
-                        .font(.system(.subheadline, design: AppTheme.fontFamily, weight: .medium))
-                        .foregroundStyle(Color.appSoftBrown)
+                    Text("Avoid & Rationale")
+                        .sectionLabel()
 
                     Spacer()
 
                     Image(systemName: showAvoidSection ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(Color.appSoftBrown.opacity(0.4))
+                        .font(.caption2)
+                        .foregroundStyle(Color.appSoftBrown.opacity(0.3))
                 }
             }
 
             if showAvoidSection {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-                    // Avoid list
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Avoid")
-                            .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
-                            .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+                            .sectionLabel(color: phase.accentColor)
 
                         ForEach(plan.avoid, id: \.self) { item in
                             HStack(alignment: .top, spacing: AppTheme.Spacing.sm) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(phase.accentColor.opacity(0.5))
-                                    .padding(.top, 2)
+                                Circle()
+                                    .fill(phase.accentColor.opacity(0.4))
+                                    .frame(width: 4, height: 4)
+                                    .padding(.top, 7)
 
                                 Text(item)
-                                    .guidanceText()
+                                    .serifBody()
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
 
-                    // Rationale
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Why This Works")
-                            .font(.system(.caption, design: AppTheme.fontFamily, weight: .medium))
-                            .foregroundStyle(Color.appSoftBrown.opacity(0.5))
+                            .sectionLabel(color: phase.accentColor)
 
                         Text(plan.rationale)
-                            .guidanceText()
+                            .serifBody()
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }

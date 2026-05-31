@@ -19,15 +19,11 @@ struct PatternInsightsView: View {
 
     private var notEnoughDataView: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            HStack(spacing: AppTheme.Spacing.sm) {
-                Image(systemName: "wand.and.stars")
-                    .foregroundStyle(Color.appTerracotta)
-                Text("Pattern Analysis")
-                    .warmHeadline()
-            }
+            Text("Pattern Analysis")
+                .sectionLabel(color: Color.appTerracotta)
 
             Text("Log at least \(PatternAnalysisEngine.minimumEntries) symptom entries over 2 weeks to unlock your personalized pattern analysis and protocol recommendation.")
-                .guidanceText()
+                .serifBody()
                 .fixedSize(horizontal: false, vertical: true)
 
             let progress = Double(analysis.dataCoverage.totalEntries) / Double(PatternAnalysisEngine.minimumEntries)
@@ -62,17 +58,11 @@ struct PatternInsightsView: View {
 
     private var fullAnalysisView: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            // Header
-            HStack(spacing: AppTheme.Spacing.sm) {
-                Image(systemName: "wand.and.stars")
-                    .foregroundStyle(Color.appTerracotta)
-                Text("Pattern Analysis")
-                    .warmHeadline()
-            }
+            Text("Pattern Analysis")
+                .sectionLabel(color: Color.appTerracotta)
 
-            // Data coverage
             Text(analysis.dataCoverage.summaryText)
-                .captionStyle()
+                .serifCaption()
 
             // Cluster sections
             VStack(spacing: 0) {
